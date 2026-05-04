@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Neue Verfügbarkeitsregel - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <span class="text-xl font-medium">BTF Slot Verwaltung</span>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <a href="{{ url_for('availability_rules') }}" class="text-sm text-gray-500 hover:text-gray-700 mr-4">
+                        ← Zurück
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="text-sm text-gray-500 hover:text-gray-700">
+                        Abmelden
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <h1 class="text-2xl font-medium text-gray-900 mb-6">Neue Verfügbarkeitsregel</h1>
+            
+            <form method="POST" class="space-y-8">
+                <!-- Grundeinstellungen -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Grundeinstellungen</h2>
+                    
+                    <div class="grid grid-cols-1 gap-6">
+                        <div>
+                            <label for="name" class="block text-sm font-medium text-gray-700">Name der Regel *</label>
+                            <input type="text" name="name" id="name" required
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                                   placeholder="z.B. Wochenend-Beschränkung">
+                        </div>
+                        
+                        <div>
+                            <label for="description" class="block text-sm font-medium text-gray-700">Beschreibung</label>
+                            <textarea name="description" id="description" rows="2"
+                                      class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                                      placeholder="Optionale Beschreibung der Regel"></textarea>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <input type="checkbox" name="active" id="active" checked class="h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500">
+                            <label for="active" class="ml-2 text-sm text-gray-700">Regel aktiv</label>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Geltungsbereich -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Geltungsbereich</h2>
+                    
+                    <div class="space-y-4">
+                        <div class="flex items-center">
+                            <input type="radio" name="scope" id="scope_all" value="all" checked
+                                   class="h-4 w-4 text-gray-900 border-gray-300 focus:ring-gray-500"
+                                   onchange="toggleProductSelector()">
+                            <label for="scope_all" class="ml-2 text-sm text-gray-700">Alle Produkte</label>
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <input type="radio" name="scope" id="scope_specific" value="specific"
+                                   class="h-4 w-4 text-gray-900 border-gray-300 focus:ring-gray-500"
+                                   onchange="toggleProductSelector()">
+                            <label for="scope_specific" class="ml-2 text-sm text-gray-700">Bestimmte Produkte</label>
+                        </div>
+                        
+                        <div id="product_selector" class="hidden ml-6 mt-4">
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Produkte auswählen</label>
+                            <div class="max-h-48 overflow-y-auto border border-gray-300 rounded-md p-2 space-y-1">
+                                {% for product in products %}
+                                <label class="flex items-center p-2 hover:bg-gray-50 rounded">
+                                    <input type="checkbox" name="products" value="{{ product.id }}"
+                                           class="h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500">
+                                    <span class="ml-2 text-sm">{{ product.name }}</span>
+                                </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Zeitliche Einschränkungen -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Zeitliche Einschränkungen</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <!-- Datumsbereich -->
+                        <div>
+                            <label for="start_date" class="block text-sm font-medium text-gray-700">Startdatum</label>
+                            <input type="date" name="start_date" id="start_date"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-500">Leer = kein Startdatum</p>
+                        </div>
+                        
+                        <div>
+                            <label for="end_date" class="block text-sm font-medium text-gray-700">Enddatum</label>
+                            <input type="date" name="end_date" id="end_date"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-500">Leer = kein Enddatum</p>
+                        </div>
+                        
+                        <!-- Tageszeit -->
+                        <div>
+                            <label for="start_time" class="block text-sm font-medium text-gray-700">Startzeit</label>
+                            <input type="time" name="start_time" id="start_time"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-500">Leer = ganztägig</p>
+                        </div>
+                        
+                        <div>
+                            <label for="end_time" class="block text-sm font-medium text-gray-700">Endzeit</label>
+                            <input type="time" name="end_time" id="end_time"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-500">Leer = ganztägig</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Wochentage -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Wochentage</h2>
+                    <p class="text-sm text-gray-500 mb-4">Auswahl leer = alle Tage</p>
+                    
+                    <div class="flex flex-wrap gap-4">
+                        {% set days = [{'val': 0, 'label': 'Sonntag'}, {'val': 1, 'label': 'Montag'}, {'val': 2, 'label': 'Dienstag'}, {'val': 3, 'label': 'Mittwoch'}, {'val': 4, 'label': 'Donnerstag'}, {'val': 5, 'label': 'Freitag'}, {'val': 6, 'label': 'Samstag'}] %}
+                        {% for day in days %}
+                        <label class="flex items-center">
+                            <input type="checkbox" name="weekday_{{ day.val }}" id="weekday_{{ day.val }}"
+                                   class="h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500">
+                            <span class="ml-2 text-sm">{{ day.label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Monate -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Monate</h2>
+                    <p class="text-sm text-gray-500 mb-4">Auswahl leer = alle Monate</p>
+                    
+                    <div class="flex flex-wrap gap-4">
+                        {% set months = [{'val': 1, 'label': 'Jan'}, {'val': 2, 'label': 'Feb'}, {'val': 3, 'label': 'Mär'}, {'val': 4, 'label': 'Apr'}, {'val': 5, 'label': 'Mai'}, {'val': 6, 'label': 'Jun'}, {'val': 7, 'label': 'Jul'}, {'val': 8, 'label': 'Aug'}, {'val': 9, 'label': 'Sep'}, {'val': 10, 'label': 'Okt'}, {'val': 11, 'label': 'Nov'}, {'val': 12, 'label': 'Dez'}] %}
+                        {% for month in months %}
+                        <label class="flex items-center">
+                            <input type="checkbox" name="month_{{ month.val }}" id="month_{{ month.val }}"
+                                   class="h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500">
+                            <span class="ml-2 text-sm">{{ month.label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Monatstage -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Tage des Monats</h2>
+                    <p class="text-sm text-gray-500 mb-4">Auswahl leer = alle Tage</p>
+                    
+                    <div class="grid grid-cols-7 gap-2">
+                        {% for day in range(1, 32) %}
+                        <label class="flex items-center justify-center">
+                            <input type="checkbox" name="monthday_{{ day }}" id="monthday_{{ day }}"
+                                   class="h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500">
+                            <span class="ml-1 text-sm">{{ day }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                
+                <!-- Verfügbarkeit -->
+                <div class="bg-white shadow rounded-lg p-6">
+                    <h2 class="text-lg font-medium text-gray-900 mb-4">Verfügbarkeit</h2>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label for="available_quantity" class="block text-sm font-medium text-gray-700">Verfügbare Menge</label>
+                            <input type="number" name="available_quantity" id="available_quantity" value="-1" min="-1"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-500">
+                                -1 = Unbegrenzt, 0 = Nicht verfügbar, >0 = Bestimmte Menge
+                            </p>
+                        </div>
+                        
+                        <div>
+                            <label for="priority" class="block text-sm font-medium text-gray-700">Priorität</label>
+                            <input type="number" name="priority" id="priority" value="0"
+                                   class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm">
+                            <p class="mt-1 text-xs text-gray-500">
+                                Höhere Priorität wird zuerst angewendet
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Actions -->
+                <div class="flex justify-end gap-4">
+                    <a href="{{ url_for('availability_rules') }}" class="px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                        Abbrechen
+                    </a>
+                    <button type="submit" class="px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800">
+                        Regel erstellen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </main>
+    
+    <script>
+        function toggleProductSelector() {
+            const specific = document.getElementById('scope_specific').checked;
+            const selector = document.getElementById('product_selector');
+            if (specific) {
+                selector.classList.remove('hidden');
+            } else {
+                selector.classList.add('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

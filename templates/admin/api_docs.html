@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API-Dokumentation - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        .code-block { font-family: 'Menlo', 'Monaco', 'Courier New', monospace; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <nav class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <span class="text-xl font-medium">BTF Slot Verwaltung</span>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <a href="{{ url_for('api_keys') }}" class="text-sm text-gray-500 hover:text-gray-700 mr-4">
+                        API-Schlüssel
+                    </a>
+                    <a href="{{ url_for('logout') }}" class="text-sm text-gray-500 hover:text-gray-700">
+                        Abmelden
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-5xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <h1 class="text-3xl font-medium text-gray-900 mb-2">API-Dokumentation</h1>
+            <p class="text-lg text-gray-500 mb-8">Programmatischer Zugriff auf BTF Slot-System</p>
+
+            <!-- Inhaltsverzeichnis -->
+            <div class="bg-white shadow rounded-lg p-6 mb-8">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Inhaltsverzeichnis</h2>
+                <ul class="space-y-2 text-sm">
+                    <li><a href="#authentication" class="text-blue-600 hover:text-blue-800">1. Authentifizierung</a></li>
+                    <li><a href="#slots" class="text-blue-600 hover:text-blue-800">2. Zeit-Slots (/api/v1/slots)</a></li>
+                    <li><a href="#orders" class="text-blue-600 hover:text-blue-800">3. Bestellungen (/api/v1/orders)</a></li>
+                    <li><a href="#products" class="text-blue-600 hover:text-blue-800">4. Produkte (/api/v1/products)</a></li>
+                    <li><a href="#availability" class="text-blue-600 hover:text-blue-800">5. Verfügbarkeit (/api/v1/availability)</a></li>
+                    <li><a href="#health" class="text-blue-600 hover:text-blue-800">6. Health-Check (/api/v1/health)</a></li>
+                    <li><a href="#errors" class="text-blue-600 hover:text-blue-800">7. Fehlercodes</a></li>
+                </ul>
+            </div>
+
+            <!-- Authentication -->
+            <div id="authentication" class="bg-white shadow rounded-lg p-6 mb-8">
+                <h2 class="text-xl font-medium text-gray-900 mb-4">1. Authentifizierung</h2>
+                <p class="text-gray-600 mb-4">
+                    Alle API-Anfragen müssen einen gültigen API-Schlüssel im Header enthalten.
+                </p>
+                
+                <div class="bg-gray-900 rounded-lg p-4 mb-4">
+                    <pre class="text-green-400 text-sm code-block overflow-x-auto"># Header
+X-API-Key: btf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Alternativ als Query-Parameter
+curl "https://domain/api/v1/slots?api_key=btf_xxx"</pre>
+                </div>
+                
+                <div class="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92z" clip-rule="evenodd" />
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm text-yellow-700">API-Schlüssel erhalten Sie im Admin-Bereich unter "API-Schlüssel".</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Slots -->
+            <div id="slots" class="bg-white shadow rounded-lg p-6 mb-8">
+                <h2 class="text-xl font-medium text-gray-900 mb-4">2. Zeit-Slots</h2>
+                <p class="text-gray-600 mb-4">Abruf von Zeit-Slots.</p>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Endpunkt</h3>
+                <div class="bg-gray-100 rounded px-3 py-2 text-sm font-mono">GET /api/v1/slots</div>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Query-Parameter</h3>
+                <table class="min-w-full divide-y divide-gray-200 mb-4">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Parameter</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Typ</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">date</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">string</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">YYYY-MM-DD (optional)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">upcoming</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">boolean</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Nur zukünftige Slots (default: true)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">limit</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">integer</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Max. Anzahl (default: 10, max: 100)</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Beispiel</h3>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <pre class="text-green-400 text-sm code-block overflow-x-auto">curl -H "X-API-Key: btf_xxx" \
+  "https://domain/api/v1/slots?upcoming=true&limit=20"</pre>
+                </div>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Antwort</h3>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <pre class="text-green-400 text-sm code-block overflow-x-auto">{
+  "success": true,
+  "data": [
+    {
+      "id": 1,
+      "date": "2024-01-15",
+      "start_time": "10:00",
+      "end_time": "10:30",
+      "capacity": 5,
+      "used_capacity": 2,
+      "available": 3
+    }
+  ],
+  "meta": {
+    "total": 1,
+    "date": "all",
+    "upcoming": true
+  }
+}</pre>
+                </div>
+            </div>
+
+            <!-- Orders -->
+            <div id="orders" class="bg-white shadow rounded-lg p-6 mb-8">
+                <h2 class="text-xl font-medium text-gray-900 mb-4">3. Bestellungen</h2>
+                <p class="text-gray-600 mb-4">Abruf und Filterung von Bestellungen.</p>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Endpunkte</h3>
+                <div class="space-y-2 text-sm font-mono">
+                    <div class="bg-gray-100 rounded px-3 py-2">GET /api/v1/orders</div>
+                    <div class="bg-gray-100 rounded px-3 py-2">GET /api/v1/orders/:id</div>
+                </div>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Query-Parameter</h3>
+                <table class="min-w-full divide-y divide-gray-200 mb-4">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Parameter</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Typ</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">status</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">string</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">new, in_progress, ready, completed, cancelled</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">date</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">string</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">YYYY-MM-DD</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">slot_id</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">integer</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Nach Slot filtern</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">from_date</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">string</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Datum ab (YYYY-MM-DD)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">to_date</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">string</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Datum bis (YYYY-MM-DD)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">limit</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">integer</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">max: 100</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Beispiel</h3>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <pre class="text-green-400 text-sm code-block overflow-x-auto"># Alle aktuellen Bestellungen
+curl -H "X-API-Key: btf_xxx" \
+  "https://domain/api/v1/orders?status=new"
+
+# Bestellung nach ID
+curl -H "X-API-Key: btf_xxx" \
+  "https://domain/api/v1/orders/123"
+
+# Bestellungen nach Datum
+curl -H "X-API-Key: btf_xxx" \
+  "https://domain/api/v1/orders?from_date=2024-01-01&to_date=2024-01-31"</pre>
+                </div>
+            </div>
+
+            <!-- Products -->
+            <div id="products" class="bg-white shadow rounded-lg p-6 mb-8">
+                <h2 class="text-xl font-medium text-gray-900 mb-4">4. Produkte</h2>
+                <p class="text-gray-600 mb-4">Abruf von Produktinformationen.</p>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Endpunkt</h3>
+                <div class="bg-gray-100 rounded px-3 py-2 text-sm font-mono">GET /api/v1/products</div>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Query-Parameter</h3>
+                <table class="min-w-full divide-y divide-gray-200 mb-4">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Parameter</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Typ</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">active</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">boolean</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Nur aktive (default: true)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">product_type</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">string</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Nach Typ filtern</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Beispiel</h3>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <pre class="text-green-400 text-sm code-block overflow-x-auto">curl -H "X-API-Key: btf_xxx" \
+  "https://domain/api/v1/products"</pre>
+                </div>
+            </div>
+
+            <!-- Availability -->
+            <div id="availability" class="bg-white shadow rounded-lg p-6 mb-8">
+                <h2 class="text-xl font-medium text-gray-900 mb-4">5. Verfügbarkeit</h2>
+                <p class="text-gray-600 mb-4">Abruf der Produktverfügbarkeit.</p>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Endpunkt</h3>
+                <div class="bg-gray-100 rounded px-3 py-2 text-sm font-mono">GET /api/v1/availability</div>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Query-Parameter</h3>
+                <table class="min-w-full divide-y divide-gray-200 mb-4">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Parameter</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Typ</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Beschreibung</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">product_id</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">integer</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Erforderlich!</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">date</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">string</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">YYYY-MM-DD (optional)</td>
+                        </tr>
+                    </tbody>
+                </table>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Beispiel</h3>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <pre class="text-green-400 text-sm code-block overflow-x-auto">curl -H "X-API-Key: btf_xxx" \
+  "https://domain/api/v1/availability?product_id=1&date=2024-01-15"</pre>
+                </div>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Antwort</h3>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <pre class="text-green-400 text-sm code-block overflow-x-auto">{
+  "success": true,
+  "data": {
+    "product_id": 1,
+    "date": "2024-01-15",
+    "available_quantity": 10
+  }
+}</pre>
+                </div>
+            </div>
+
+            <!-- Health -->
+            <div id="health" class="bg-white shadow rounded-lg p-6 mb-8">
+                <h2 class="text-xl font-medium text-gray-900 mb-4">6. Health-Check</h2>
+                <p class="text-gray-600 mb-4">Prüfung der API-Verfügbarkeit (ohne API-Schlüssel).</p>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Endpunkt</h3>
+                <div class="bg-gray-100 rounded px-3 py-2 text-sm font-mono">GET /api/v1/health</div>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Beispiel</h3>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <pre class="text-green-400 text-sm code-block overflow-x-auto">curl "https://domain/api/v1/health"</pre>
+                </div>
+                
+                <h3 class="font-medium text-gray-800 mt-4 mb-2">Antwort</h3>
+                <div class="bg-gray-900 rounded-lg p-4">
+                    <pre class="text-green-400 text-sm code-block overflow-x-auto">{
+  "success": true,
+  "status": "healthy",
+  "timestamp": "2024-01-15T10:30:00"
+}</pre>
+                </div>
+            </div>
+
+            <!-- Errors -->
+            <div id="errors" class="bg-white shadow rounded-lg p-6 mb-8">
+                <h2 class="text-xl font-medium text-gray-900 mb-4">7. Fehlercodes</h2>
+                
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Code</th>
+                            <th class="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase">Bedeutung</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">200</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Erfolgreich</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">400</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Ungültige Anfrage</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">401</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Nicht authentifiziert</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">403</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Keine Berechtigung</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">404</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Nicht gefunden</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">429</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Rate-Limit überschritten</td>
+                        </tr>
+                        <tr>
+                            <td class="px-3 py-2 text-sm font-mono">500</td>
+                            <td class="px-3 py-2 text-sm text-gray-500">Server-Fehler</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Footer -->
+            <div class="text-center text-sm text-gray-500 mt-8">
+                <p>API-Version: v1 | Letzte Aktualisierung: 2024</p>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

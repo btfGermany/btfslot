@@ -2525,6 +2525,17 @@ def checkout():
             return redirect(url_for('cart'))
         
         conn = get_db_connection()
+        
+        # Hole Zahlungseinstellungen
+        payment_settings = get_payment_settings()
+        paypal_enabled = bool(payment_settings['paypal_enabled'])
+        force_paypal = bool(payment_settings['force_paypal'])
+        allow_cash = bool(payment_settings['allow_cash_payment'])
+        
+        # Wenn PayPal erzwungen wird, ist Barzahlung nicht erlaubt
+        if force_paypal:
+            allow_cash = False
+        
         cart_items = []
         total_price = 0
 
@@ -2579,6 +2590,15 @@ def checkout():
             pickup_time = request.form['pickup_time']
             customer_name = request.form['customer_name']
             customer_email = request.form['customer_email']
+            
+            # Zahlungsmethode bestimmen
+            if force_paypal:
+                payment_method = 'paypal'
+            else:
+                payment_method = request.form.get('payment_method', 'cash')
+                # Validieren: nur 'paypal' oder 'cash' erlauben
+                if payment_method not in ['paypal', 'cash']:
+                    payment_method = 'cash'
 
             # Verfügbarkeit prüfen
             availability_check = {}
@@ -2596,9 +2616,8 @@ def checkout():
                     (item['product_id'], pickup_date)
                 ).fetchone()
 
-                available_quantity = availability['available_quantity'] if availability else (
-                    product['default_stock'] if 'default_stock' in product else 0
-                )
+                # Verwende die erweiterte Funktion für Verfügbarkeitsregeln
+                available_quantity = get_product_availability_for_date(item['product_id'], pickup_date)
 
                 if item['quantity'] > available_quantity:
                     availability_ok = False
@@ -2644,9 +2663,9 @@ def checkout():
             order_number = ''.join(random.choices(string.digits, k=4))
             conn.execute(
                 '''INSERT INTO orders 
-                (order_number, customer_name, customer_email, pickup_date, pickup_time, status) 
-                VALUES (?, ?, ?, ?, ?, ?)''',
-                (order_number, customer_name, customer_email, pickup_date, pickup_time, 'new')
+                (order_number, customer_name, customer_email, pickup_date, pickup_time, status, payment_method) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)''',
+                (order_number, customer_name, customer_email, pickup_date, pickup_time, 'new', payment_method)
             )
             order_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
 
@@ -2771,7 +2790,12 @@ def checkout():
             return redirect(url_for('order_confirmation'))
 
         conn.close()
-        return render_template('shop/checkout.html', cart_items=cart_items, total_price=total_price)
+        return render_template('shop/checkout.html', 
+                        cart_items=cart_items, 
+                        total_price=total_price,
+                        paypal_enabled=paypal_enabled,
+                        force_paypal=force_paypal,
+                        allow_cash=allow_cash)
 
     except Exception as e:
         return render_template('error.html', error=str(e)), 500
@@ -3402,6 +3426,1125 @@ def mark_order_completed(order_id):
     conn.close()
     
     return redirect(request.referrer or url_for('index'))
+
+
+# ============================================
+# Zahlungseinstellungen (Payment Settings)
+# ============================================
+
+def get_payment_settings():
+    """Hole die Zahlungseinstellungen aus der Datenbank"""
+    conn = get_db_connection()
+    settings = conn.execute('SELECT * FROM payment_settings ORDER BY id DESC LIMIT 1').fetchone()
+    
+    if not settings:
+        # Erstelle Standard-Einstellungen wenn nicht vorhanden
+        conn.execute('''
+            INSERT INTO payment_settings 
+            (paypal_enabled, paypal_email, paypal_client_id, paypal_secret, paypal_mode, force_paypal, allow_cash_payment)
+            VALUES (0, NULL, NULL, NULL, 'sandbox', 0, 1)
+        ''')
+        conn.commit()
+        settings = conn.execute('SELECT * FROM payment_settings ORDER BY id DESC LIMIT 1').fetchone()
+    
+    conn.close()
+    return settings
+
+
+@app.route('/admin/payment-settings', methods=['GET', 'POST'])
+@login_required
+def payment_settings():
+    """Admin-Seite für Zahlungseinstellungen"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    
+    if request.method == 'POST':
+        # Einstellungen speichern
+        paypal_enabled = 1 if request.form.get('paypal_enabled') else 0
+        paypal_email = request.form.get('paypal_email', '').strip()
+        paypal_client_id = request.form.get('paypal_client_id', '').strip()
+        paypal_secret = request.form.get('paypal_secret', '').strip()
+        paypal_mode = request.form.get('paypal_mode', 'sandbox')
+        force_paypal = 1 if request.form.get('force_paypal') else 0
+        allow_cash_payment = 1 if request.form.get('allow_cash_payment') else 0
+        
+        # Aktualisiere oder füge neue Einstellungen ein
+        existing = conn.execute('SELECT id FROM payment_settings ORDER BY id DESC LIMIT 1').fetchone()
+        
+        if existing:
+            conn.execute('''
+                UPDATE payment_settings 
+                SET paypal_enabled = ?, paypal_email = ?, paypal_client_id = ?, 
+                    paypal_secret = ?, paypal_mode = ?, force_paypal = ?, 
+                    allow_cash_payment = ?, updated = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (paypal_enabled, paypal_email, paypal_client_id, paypal_secret,
+                  paypal_mode, force_paypal, allow_cash_payment, existing['id']))
+        else:
+            conn.execute('''
+                INSERT INTO payment_settings 
+                (paypal_enabled, paypal_email, paypal_client_id, paypal_secret, 
+                 paypal_mode, force_paypal, allow_cash_payment)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (paypal_enabled, paypal_email, paypal_client_id, paypal_secret,
+                  paypal_mode, force_paypal, allow_cash_payment))
+        
+        conn.commit()
+        flash('Zahlungseinstellungen wurden gespeichert!', 'success')
+        return redirect(url_for('payment_settings'))
+    
+    # Lade aktuelle Einstellungen
+    settings = conn.execute('SELECT * FROM payment_settings ORDER BY id DESC LIMIT 1').fetchone()
+    
+    if not settings:
+        # Erstelle Standard-Einstellungen
+        settings = {
+            'id': 0,
+            'paypal_enabled': 0,
+            'paypal_email': '',
+            'paypal_client_id': '',
+            'paypal_secret': '',
+            'paypal_mode': 'sandbox',
+            'force_paypal': 0,
+            'allow_cash_payment': 1
+        }
+    
+    conn.close()
+    
+    return render_template('admin/payment_settings.html', settings=settings)
+
+
+# API-Endpunkt für Zahlungseinstellungen (für Checkout)
+@app.route('/api/payment-settings')
+def api_payment_settings():
+    """API, das die Zahlungseinstellungen für das Frontend zurückgibt"""
+    settings = get_payment_settings()
+    
+    return jsonify({
+        'paypal_enabled': bool(settings['paypal_enabled']),
+        'paypal_mode': settings['paypal_mode'],
+        'force_paypal': bool(settings['force_paypal']),
+        'allow_cash_payment': bool(settings['allow_cash_payment']),
+        'paypal_email': settings['paypal_email'] or ''
+    })
+
+
+# ============================================
+# Produkt-Verfügbarkeitsregeln (Availability Rules)
+# ============================================
+
+def get_applicable_availability_rule(product_id, date, time=None):
+    """
+    Ermittelt die anwendbare Verfügbarkeitsregel für ein Produkt zu einem bestimmten Zeitpunkt.
+    Returns: (rule_dict or None, applies_to_product)
+    """
+    conn = get_db_connection()
+    now = datetime.now()
+    
+    # Zeit und Datum bestimmen
+    if not time:
+        time = now.strftime('%H:%M')
+    check_date = date if date else now.strftime('%Y-%m-%d')
+    check_weekday = now.weekday()  # 0 = Montag, 6 = Sonntag
+    check_month = now.month
+    check_day = now.day
+    
+    # Alle aktiven Regeln abrufen, sortiert nach Priorität (absteigend)
+    rules = conn.execute('''
+        SELECT * FROM availability_rules 
+        WHERE active = 1 
+        ORDER BY priority DESC, id DESC
+    ''').fetchall()
+    
+    applicable_rule = None
+    
+    for rule in rules:
+        # Prüfen ob Regel für dieses Produkt gilt
+        if rule['scope'] == 'specific':
+            # Prüfen ob Produkt in der Regel enthalten ist
+            product_in_rule = conn.execute('''
+                SELECT 1 FROM availability_rule_products 
+                WHERE rule_id = ? AND product_class_id = ?
+            ''', (rule['id'], product_id)).fetchone()
+            
+            if not product_in_rule:
+                continue  # Regel gilt nicht für dieses Produkt
+        
+        # Datumsbereich prüfen
+        if rule['start_date'] and check_date < rule['start_date']:
+            continue
+        if rule['end_date'] and check_date > rule['end_date']:
+            continue
+        
+        # Tageszeit prüfen (falls start_time oder end_time angegeben)
+        if rule['start_time'] and time < rule['start_time']:
+            continue
+        if rule['end_time'] and time > rule['end_time']:
+            continue
+        
+        # Wochentage prüfen
+        if rule['weekdays']:
+            weekdays = [int(d) for d in rule['weekdays'].split(',')]
+            if check_weekday not in weekdays:
+                continue
+        
+        # Monatstage prüfen
+        if rule['month_days']:
+            month_days = [int(d) for d in rule['month_days'].split(',')]
+            if check_day not in month_days:
+                continue
+        
+        # Monate prüfen
+        if rule['months']:
+            months = [int(m) for m in rule['months'].split(',')]
+            if check_month not in months:
+                continue
+        
+        # Alle Bedingungen erfüllt - Regel anwenden
+        applicable_rule = rule
+        break  # Erste passende Regel (höchste Priorität) verwenden
+    
+    conn.close()
+    return applicable_rule
+
+
+def get_product_availability_for_date(product_id, date, time=None):
+    """
+    Ermittelt die verfügbare Menge für ein Produkt an einem bestimmten Datum.
+    Berücksichtigt sowohl tägliche Verfügbarkeit als auch Verfügbarkeitsregeln.
+    """
+    conn = get_db_connection()
+    now = datetime.now()
+    
+    if not time:
+        time = now.strftime('%H:%M')
+    check_date = date if date else now.strftime('%Y-%m-%d')
+    
+    # Produkt-Standardmenge abrufen
+    product = conn.execute('SELECT default_stock FROM product_classes WHERE id = ?', (product_id,)).fetchone()
+    default_stock = product['default_stock'] if product else 0
+    
+    # Zuerst: Standard tägliche Verfügbarkeit prüfen
+    daily_availability = conn.execute('''
+        SELECT available_quantity FROM product_daily_availability 
+        WHERE product_id = ? AND date = ?
+    ''', (product_id, check_date)).fetchone()
+    
+    # Dann: Regel-basierte Verfügbarkeit prüfen
+    rule = get_applicable_availability_rule(product_id, check_date, time)
+    
+    if rule:
+        rule_quantity = rule['available_quantity']
+        
+        if rule_quantity == -1:
+            # Unbegrenzt - verwende Daily-Availability oder Standard
+            available = daily_availability['available_quantity'] if daily_availability else default_stock
+        else:
+            # Regel bestimmt Menge
+            available = rule_quantity
+    else:
+        # Keine Regel - Standard verwenden
+        available = daily_availability['available_quantity'] if daily_availability else default_stock
+    
+    conn.close()
+    return max(0, available)
+
+
+@app.route('/admin/availability-rules')
+@login_required
+def availability_rules():
+    """Admin-Seite für Verfügbarkeitsregeln"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    
+    # Alle Regeln abrufen
+    rules = conn.execute('SELECT * FROM availability_rules ORDER BY priority DESC, id DESC').fetchall()
+    
+    # Produkte für jede Regel abrufen (falls scope = 'specific')
+    rules_with_products = []
+    for rule in rules:
+        if rule['scope'] == 'specific':
+            products = conn.execute('''
+                SELECT pc.* FROM product_classes pc
+                JOIN availability_rule_products arp ON pc.id = arp.product_class_id
+                WHERE arp.rule_id = ?
+            ''', (rule['id'],)).fetchall()
+            rules_with_products.append({
+                'rule': rule,
+                'products': products
+            })
+        else:
+            rules_with_products.append({
+                'rule': rule,
+                'products': []
+            })
+    
+    conn.close()
+    
+    return render_template('admin/availability_rules.html', rules=rules_with_products)
+
+
+@app.route('/admin/availability-rules/add', methods=['GET', 'POST'])
+@login_required
+def add_availability_rule():
+    """Neue Verfügbarkeitsregel erstellen"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        active = 1 if request.form.get('active') else 0
+        scope = request.form.get('scope', 'all')
+        
+        # Zeitliche Einschränkungen
+        start_date = request.form.get('start_date', '').strip() or None
+        end_date = request.form.get('end_date', '').strip() or None
+        start_time = request.form.get('start_time', '').strip() or None
+        end_time = request.form.get('end_time', '').strip() or None
+        
+        # Wochentage (0=So, 1=Mo, ..., 6=Sa)
+        weekdays = []
+        for i in range(7):
+            if request.form.get(f'weekday_{i}'):
+                weekdays.append(str(i))
+        weekdays_str = ','.join(weekdays) if weekdays else None
+        
+        # Monatstage
+        month_days = []
+        for i in range(1, 32):
+            if request.form.get(f'monthday_{i}'):
+                month_days.append(str(i))
+        month_days_str = ','.join(month_days) if month_days else None
+        
+        # Monate
+        months = []
+        for i in range(1, 13):
+            if request.form.get(f'month_{i}'):
+                months.append(str(i))
+        months_str = ','.join(months) if months else None
+        
+        # Menge und Priorität
+        quantity = int(request.form.get('available_quantity', -1))
+        priority = int(request.form.get('priority', 0))
+        
+        # Regel speichern
+        conn.execute('''
+            INSERT INTO availability_rules 
+            (name, description, active, scope, start_date, end_date, start_time, end_time,
+             weekdays, month_days, months, available_quantity, priority)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (name, description, active, scope, start_date, end_date, start_time, end_time,
+              weekdays_str, month_days_str, months_str, quantity, priority))
+        
+        rule_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        
+        # Produkte für spezifische Regeln speichern
+        if scope == 'specific':
+            product_ids = request.form.getlist('products')
+            for product_id in product_ids:
+                conn.execute('''
+                    INSERT INTO availability_rule_products (rule_id, product_class_id)
+                    VALUES (?, ?)
+                ''', (rule_id, int(product_id)))
+        
+        conn.commit()
+        flash(f'Verfügbarkeitsregel "{name}" wurde erstellt!', 'success')
+        conn.close()
+        return redirect(url_for('availability_rules'))
+    
+    # Produkte für Auswahl abrufen
+    products = conn.execute('''
+        SELECT * FROM product_classes 
+        WHERE active = 1 AND deleted = 0
+        ORDER BY name
+    ''').fetchall()
+    
+    conn.close()
+    return render_template('admin/add_availability_rule.html', products=products)
+
+
+@app.route('/admin/availability-rules/<int:rule_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_availability_rule(rule_id):
+    """Verfügbarkeitsregel bearbeiten"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        description = request.form.get('description', '').strip()
+        active = 1 if request.form.get('active') else 0
+        scope = request.form.get('scope', 'all')
+        
+        # Zeitliche Einschränkungen
+        start_date = request.form.get('start_date', '').strip() or None
+        end_date = request.form.get('end_date', '').strip() or None
+        start_time = request.form.get('start_time', '').strip() or None
+        end_time = request.form.get('end_time', '').strip() or None
+        
+        # Wochentage
+        weekdays = []
+        for i in range(7):
+            if request.form.get(f'weekday_{i}'):
+                weekdays.append(str(i))
+        weekdays_str = ','.join(weekdays) if weekdays else None
+        
+        # Monatstage
+        month_days = []
+        for i in range(1, 32):
+            if request.form.get(f'monthday_{i}'):
+                month_days.append(str(i))
+        month_days_str = ','.join(month_days) if month_days else None
+        
+        # Monate
+        months = []
+        for i in range(1, 13):
+            if request.form.get(f'month_{i}'):
+                months.append(str(i))
+        months_str = ','.join(months) if months else None
+        
+        # Menge und Priorität
+        quantity = int(request.form.get('available_quantity', -1))
+        priority = int(request.form.get('priority', 0))
+        
+        # Regel aktualisieren
+        conn.execute('''
+            UPDATE availability_rules 
+            SET name = ?, description = ?, active = ?, scope = ?,
+                start_date = ?, end_date = ?, start_time = ?, end_time = ?,
+                weekdays = ?, month_days = ?, months = ?, 
+                available_quantity = ?, priority = ?, updated = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (name, description, active, scope, start_date, end_date, start_time, end_time,
+              weekdays_str, month_days_str, months_str, quantity, priority, rule_id))
+        
+        # Produkte aktualisieren (für spezifische Regeln)
+        if scope == 'specific':
+            # Alte Produkte entfernen
+            conn.execute('DELETE FROM availability_rule_products WHERE rule_id = ?', (rule_id,))
+            # Neue Produkte hinzufügen
+            product_ids = request.form.getlist('products')
+            for product_id in product_ids:
+                conn.execute('''
+                    INSERT INTO availability_rule_products (rule_id, product_class_id)
+                    VALUES (?, ?)
+                ''', (rule_id, int(product_id)))
+        else:
+            # Alle Produkte entfernen
+            conn.execute('DELETE FROM availability_rule_products WHERE rule_id = ?', (rule_id,))
+        
+        conn.commit()
+        flash(f'Verfügbarkeitsregel "{name}" wurde aktualisiert!', 'success')
+        conn.close()
+        return redirect(url_for('availability_rules'))
+    
+    # Regel abrufen
+    rule = conn.execute('SELECT * FROM availability_rules WHERE id = ?', (rule_id,)).fetchone()
+    
+    if not rule:
+        conn.close()
+        flash('Regel nicht gefunden!', 'error')
+        return redirect(url_for('availability_rules'))
+    
+    # Zugehörige Produkte abrufen
+    selected_products = []
+    if rule['scope'] == 'specific':
+        selected_products = conn.execute('''
+            SELECT product_class_id FROM availability_rule_products WHERE rule_id = ?
+        ''', (rule_id,)).fetchall()
+        selected_products = [p['product_class_id'] for p in selected_products]
+    
+    # Alle Produkte abrufen
+    products = conn.execute('''
+        SELECT * FROM product_classes 
+        WHERE active = 1 AND deleted = 0
+        ORDER BY name
+    ''').fetchall()
+    
+    conn.close()
+    
+    return render_template('admin/edit_availability_rule.html', 
+                      rule=rule, products=products, selected_products=selected_products)
+
+
+@app.route('/admin/availability-rules/<int:rule_id>/delete', methods=['POST'])
+@login_required
+def delete_availability_rule(rule_id):
+    """Verfügbarkeitsregel löschen"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    
+    # Regel abrufen
+    rule = conn.execute('SELECT name FROM availability_rules WHERE id = ?', (rule_id,)).fetchone()
+    
+    if rule:
+        conn.execute('DELETE FROM availability_rules WHERE id = ?', (rule_id,))
+        conn.commit()
+        flash(f'Regel "{rule["name"]}" wurde gelöscht!', 'success')
+    else:
+        flash('Regel nicht gefunden!', 'error')
+    
+    conn.close()
+    return redirect(url_for('availability_rules'))
+
+
+@app.route('/admin/availability-rules/<int:rule_id>/toggle', methods=['POST'])
+@login_required
+def toggle_availability_rule(rule_id):
+    """Verfügbarkeitsregel aktivieren/deaktivieren"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    
+    rule = conn.execute('SELECT active, name FROM availability_rules WHERE id = ?', (rule_id,)).fetchone()
+    
+    if rule:
+        new_active = 0 if rule['active'] else 1
+        conn.execute('UPDATE availability_rules SET active = ?, updated = CURRENT_TIMESTAMP WHERE id = ?', 
+                  (new_active, rule_id))
+        conn.commit()
+        status_text = "aktiviert" if new_active else "deaktiviert"
+        flash(f'Regel "{rule["name"]}" wurde {status_text}!', 'success')
+    else:
+        flash('Regel nicht gefunden!', 'error')
+    
+    conn.close()
+    return redirect(url_for('availability_rules'))
+
+
+# ============================================
+# API-Schlüssel-Verwaltung (API Keys)
+# ============================================
+
+def generate_api_key():
+    """Generiert einen zufälligen API-Schlüssel"""
+    import secrets
+    import hashlib
+    key = f"btf_{secrets.token_urlsafe(32)}"
+    key_hash = hashlib.sha256(key.encode()).hexdigest()
+    return key, key_hash
+
+
+def verify_api_key(api_key):
+    """Validiert einen API-Schlüssel"""
+    if not api_key:
+        return None
+    
+    import hashlib
+    key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+    
+    conn = get_db_connection()
+    key_record = conn.execute('''
+        SELECT * FROM api_keys 
+        WHERE key_hash = ? AND active = 1
+    ''', (key_hash,)).fetchone()
+    
+    # Prüfen ob abgelaufen
+    if key_record and key_record['expires_at']:
+        from datetime import datetime
+        if datetime.now() > datetime.fromisoformat(key_record['expires_at']):
+            conn.close()
+            return None
+    
+    conn.close()
+    return key_record
+
+
+def log_api_usage(api_key_id, endpoint, method, status_code, response_time_ms, ip_address=None, user_agent=None):
+    """Loggt API-Nutzung"""
+    conn = get_db_connection()
+    
+    # Usage count aktualisieren
+    conn.execute('''
+        UPDATE api_keys 
+        SET usage_count = usage_count + 1, last_used = CURRENT_TIMESTAMP 
+        WHERE id = ?
+    ''', (api_key_id,))
+    
+    # Log-Eintrag
+    conn.execute('''
+        INSERT INTO api_usage_logs 
+        (api_key_id, endpoint, method, status_code, response_time_ms, ip_address, user_agent)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (api_key_id, endpoint, method, status_code, response_time_ms, ip_address, user_agent))
+    
+    conn.commit()
+    conn.close()
+
+
+@app.route('/admin/api-keys')
+@login_required
+def api_keys():
+    """Admin-Seite für API-Schlüssel"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    keys = conn.execute('SELECT * FROM api_keys ORDER BY created DESC').fetchall()
+    conn.close()
+    
+    return render_template('admin/api_keys.html', keys=keys)
+
+
+@app.route('/admin/api-keys/add', methods=['GET', 'POST'])
+@login_required
+def add_api_key():
+    """Neuen API-Schlüssel erstellen"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    
+    if request.method == 'POST':
+        name = request.form.get('name', '').strip()
+        permissions = request.form.get('permissions', 'read')
+        rate_limit = int(request.form.get('rate_limit', 100))
+        expires_at = request.form.get('expires_at', '').strip() or None
+        
+        # API-Schlüssel generieren
+        api_key, key_hash = generate_api_key()
+        
+        conn.execute('''
+            INSERT INTO api_keys (name, key_hash, permissions, rate_limit, expires_at)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (name, key_hash, permissions, rate_limit, expires_at))
+        
+        conn.commit()
+        
+        # Letztgenierten Schlüssel abrufen
+        key_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+        conn.close()
+        
+        # Zeige Schlüssel nur einmalig an
+        flash(f'API-Schlüssel erstellt! Dies ist der einzige Zeitpunkt, zu dem Sie den Schlüssel sehen können.', 'success')
+        
+        return render_template('admin/api_key_created.html', api_key=api_key, key_name=name, key_id=key_id)
+    
+    conn.close()
+    return render_template('admin/add_api_key.html')
+
+
+@app.route('/admin/api-keys/<int:key_id>/toggle', methods=['POST'])
+@login_required
+def toggle_api_key(key_id):
+    """API-Schlüssel aktivieren/deaktivieren"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    key = conn.execute('SELECT active, name FROM api_keys WHERE id = ?', (key_id,)).fetchone()
+    
+    if key:
+        new_active = 0 if key['active'] else 1
+        conn.execute('UPDATE api_keys SET active = ?, updated = CURRENT_TIMESTAMP WHERE id = ?', 
+                    (new_active, key_id))
+        conn.commit()
+        status_text = "aktiviert" if new_active else "deaktiviert"
+        flash(f'API-Schlüssel "{key["name"]}" wurde {status_text}!', 'success')
+    else:
+        flash('Schlüssel nicht gefunden!', 'error')
+    
+    conn.close()
+    return redirect(url_for('api_keys'))
+
+
+@app.route('/admin/api-keys/<int:key_id>/delete', methods=['POST'])
+@login_required
+def delete_api_key(key_id):
+    """API-Schlüssel löschen"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    key = conn.execute('SELECT name FROM api_keys WHERE id = ?', (key_id,)).fetchone()
+    
+    if key:
+        conn.execute('DELETE FROM api_keys WHERE id = ?', (key_id,))
+        conn.execute('DELETE FROM api_usage_logs WHERE api_key_id = ?', (key_id,))
+        conn.commit()
+        flash(f'API-Schlüssel "{key["name"]}" wurde gelöscht!', 'success')
+    else:
+        flash('Schlüssel nicht gefunden!', 'error')
+    
+    conn.close()
+    return redirect(url_for('api_keys'))
+
+
+@app.route('/admin/api-keys/<int:key_id>/regenerate', methods=['POST'])
+@login_required
+def regenerate_api_key(key_id):
+    """API-Schlüssel neu generieren"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    conn = get_db_connection()
+    key = conn.execute('SELECT name FROM api_keys WHERE id = ?', (key_id,)).fetchone()
+    
+    if key:
+        api_key, key_hash = generate_api_key()
+        conn.execute('''
+            UPDATE api_keys 
+            SET key_hash = ?, updated = CURRENT_TIMESTAMP, usage_count = 0 
+            WHERE id = ?
+        ''', (key_hash, key_id))
+        conn.commit()
+        flash(f'API-Schlüssel für "{key["name"]}" wurde neu generiert!', 'success')
+        conn.close()
+        return render_template('admin/api_key_created.html', api_key=api_key, key_name=key['name'], key_id=key_id)
+    else:
+        flash('Schlüssel nicht gefunden!', 'error')
+        conn.close()
+        return redirect(url_for('api_keys'))
+
+
+@app.route('/admin/api-docs')
+@login_required
+def api_docs():
+    """API-Dokumentation"""
+    if current_user.role != 'admin':
+        return redirect(url_for('index'))
+    
+    return render_template('admin/api_docs.html')
+
+
+# ============================================
+# Öffentliche API-Endpunkte
+# ============================================
+
+@app.route('/api/v1/slots', methods=['GET'])
+def api_slots():
+    """
+    GET /api/v1/slots
+    
+    Gibt Zeit-Slots zurück.
+    
+    Query-Parameter:
+    - date: Datum (YYYY-MM-DD),optional - nur Slots für dieses Datum
+    - upcoming: 'true'/'false', optional - nur zukünftige Slots
+    - limit: Integer, optional - maximale Anzahl (default: 10)
+    
+    Antwort:
+    {
+        "success": true,
+        "data": [...],
+        "meta": {...}
+    }
+    """
+    start_time = time.time()
+    
+    # API-Schlüssel validieren
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    key_record = verify_api_key(api_key)
+    
+    if not key_record:
+        return jsonify({
+            "success": false,
+            "error": "Ungültiger oder abgelaufener API-Schlüssel"
+        }), 401
+    
+    conn = get_db_connection()
+    
+    # Query-Parameter
+    date = request.args.get('date')
+    upcoming = request.args.get('upcoming', 'true').lower() == 'true'
+    limit = min(int(request.args.get('limit', 10)), 100)
+    
+    query = 'SELECT * FROM time_slots WHERE 1=1'
+    params = []
+    
+    if date:
+        query += ' AND date = ?'
+        params.append(date)
+    
+    if upcoming:
+        from datetime import datetime
+        today = datetime.now().strftime('%Y-%m-%d')
+        query += ' AND date >= ?'
+        params.append(today)
+    
+    query += ' ORDER BY date, start_time LIMIT ?'
+    params.append(limit)
+    
+    slots = conn.execute(query, params).fetchall()
+    
+    slots_data = []
+    for slot in slots:
+        slots_data.append({
+            'id': slot['id'],
+            'date': slot['date'],
+            'start_time': slot['start_time'],
+            'end_time': slot['end_time'],
+            'capacity': slot['capacity'],
+            'used_capacity': slot['used_capacity'],
+            'available': slot['capacity'] - slot['used_capacity']
+        })
+    
+    conn.close()
+    
+    response_time = int((time.time() - start_time) * 1000)
+    log_api_usage(key_record['id'], '/api/v1/slots', 'GET', 200, response_time, request.remote_addr, request.headers.get('User-Agent'))
+    
+    return jsonify({
+        'success': True,
+        'data': slots_data,
+        'meta': {
+            'total': len(slots_data),
+            'date': date or 'all',
+            'upcoming': upcoming
+        }
+    })
+
+
+@app.route('/api/v1/orders', methods=['GET'])
+def api_orders():
+    """
+    GET /api/v1/orders
+    
+    Gibt Bestellungen zurück.
+    
+    Query-Parameter:
+    - status: Bestellstatus (new, in_progress, ready, completed, cancelled)
+    - date: Datum (YYYY-MM-DD)
+    - slot_id: Zeit-Slot-ID
+    - from_date: Datum ab (YYYY-MM-DD)
+    - to_date: Datum bis (YYYY-MM-DD)
+    - limit: maximale Anzahl (default: 50, max: 100)
+    
+    Antwort:
+    {
+        "success": true,
+        "data": [...],
+        "meta": {...}
+    }
+    """
+    start_time = time.time()
+    
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    key_record = verify_api_key(api_key)
+    
+    if not key_record:
+        return jsonify({
+            "success": False,
+            "error": "Ungültiger oder abgelaufener API-Schlüssel"
+        }), 401
+    
+    # Nur Lese-Zugriff erlauben
+    if 'read' not in key_record['permissions']:
+        return jsonify({
+            "success": False,
+            "error": "Keine Lese-Berechtigung"
+        }), 403
+    
+    conn = get_db_connection()
+    
+    # Query-Parameter
+    status = request.args.get('status')
+    date = request.args.get('date')
+    slot_id = request.args.get('slot_id', type=int)
+    from_date = request.args.get('from_date')
+    to_date = request.args.get('to_date')
+    limit = min(int(request.args.get('limit', 50)), 100)
+    
+    query = 'SELECT o.*, GROUP_CONCAT(pc.name) as products FROM orders o'
+    joins_needed = 'LEFT JOIN order_items oi ON o.id = oi.order_id LEFT JOIN product_classes pc ON oi.product_class_id = pc.id'
+    
+    where = []
+    params = []
+    
+    if status:
+        where.append('o.status = ?')
+        params.append(status)
+    
+    if date:
+        where.append('o.pickup_date = ?')
+        params.append(date)
+    
+    if slot_id:
+        query += f' {joins_needed}'
+        where.append('EXISTS (SELECT 1 FROM order_item_slots ois JOIN order_items oi2 ON ois.order_item_id = oi2.id WHERE oi2.order_id = o.id AND ois.slot_id = ?)')
+        params.append(slot_id)
+    
+    if from_date:
+        where.append('o.pickup_date >= ?')
+        params.append(from_date)
+    
+    if to_date:
+        where.append('o.pickup_date <= ?')
+        params.append(to_date)
+    
+    if where:
+        query += ' WHERE ' + ' AND '.join(where)
+    
+    query += ' GROUP BY o.id ORDER BY o.pickup_date, o.pickup_time LIMIT ?'
+    params.append(limit)
+    
+    orders = conn.execute(query, params).fetchall()
+    
+    orders_data = []
+    for order in orders:
+        items = conn.execute('''
+            SELECT oi.quantity, pc.name, pc.id as product_id
+            FROM order_items oi
+            JOIN product_classes pc ON oi.product_class_id = pc.id
+            WHERE oi.order_id = ?
+        ''', (order['id'],)).fetchall()
+        
+        orders_data.append({
+            'id': order['id'],
+            'order_number': order['order_number'],
+            'customer_name': order['customer_name'],
+            'customer_email': order['customer_email'],
+            'pickup_date': order['pickup_date'],
+            'pickup_time': order['pickup_time'],
+            'status': order['status'],
+            'payment_method': order.get('payment_method', 'cash'),
+            'items': [{'product_id': item['product_id'], 'name': item['name'], 'quantity': item['quantity']} for item in items],
+            'created': order['created']
+        })
+    
+    conn.close()
+    
+    response_time = int((time.time() - start_time) * 1000)
+    log_api_usage(key_record['id'], '/api/v1/orders', 'GET', 200, response_time, request.remote_addr, request.headers.get('User-Agent'))
+    
+    return jsonify({
+        'success': True,
+        'data': orders_data,
+        'meta': {
+            'total': len(orders_data),
+            'filters': {
+                'status': status,
+                'date': date,
+                'slot_id': slot_id,
+                'from_date': from_date,
+                'to_date': to_date
+            }
+        }
+    })
+
+
+@app.route('/api/v1/orders/<int:order_id>', methods=['GET'])
+def api_order_detail(order_id):
+    """
+    GET /api/v1/orders/{id}
+    
+    Gibt Details einer einzelnen Bestellung zurück.
+    """
+    start_time = time.time()
+    
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    key_record = verify_api_key(api_key)
+    
+    if not key_record:
+        return jsonify({
+            "success": False,
+            "error": "Ungültiger oder abgelepener API-Schlüssel"
+        }), 401
+    
+    if 'read' not in key_record['permissions']:
+        return jsonify({
+            "success": False,
+            "error": "Keine Lese-Berechtigung"
+        }), 403
+    
+    conn = get_db_connection()
+    order = conn.execute('SELECT * FROM orders WHERE id = ?', (order_id,)).fetchone()
+    
+    if not order:
+        conn.close()
+        return jsonify({
+            "success": False,
+            "error": "Bestellung nicht gefunden"
+        }), 404
+    
+    # Items abrufen
+    items = conn.execute('''
+        SELECT oi.*, pc.name, pc.id as product_id
+        FROM order_items oi
+        JOIN product_classes pc ON oi.product_class_id = pc.id
+        WHERE oi.order_id = ?
+    ''', (order_id,)).fetchall()
+    
+    # Refinements abrufen
+    items_list = []
+    for item in items:
+        refinements = conn.execute('''
+            SELECT r.name
+            FROM order_item_refinements oir
+            JOIN refinements r ON oir.refinement_id = r.id
+            WHERE oir.order_item_id = ?
+        ''', (item['id'],)).fetchall()
+        
+        items_list.append({
+            'product_id': item['product_id'],
+            'product_name': item['name'],
+            'quantity': item['quantity'],
+            'refinements': [r['name'] for r in refinements]
+        })
+    
+    conn.close()
+    
+    response_time = int((time.time() - start_time) * 1000)
+    log_api_usage(key_record['id'], f'/api/v1/orders/{order_id}', 'GET', 200, response_time, request.remote_addr, request.headers.get('User-Agent'))
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'id': order['id'],
+            'order_number': order['order_number'],
+            'customer_name': order['customer_name'],
+            'customer_email': order['customer_email'],
+            'pickup_date': order['pickup_date'],
+            'pickup_time': order['pickup_time'],
+            'status': order['status'],
+            'payment_method': order.get('payment_method', 'cash'),
+            'items': items_list,
+            'created': order['created']
+        }
+    })
+
+
+@app.route('/api/v1/products', methods=['GET'])
+def api_products():
+    """
+    GET /api/v1/products
+    
+    Gibt Produkte zurück.
+    
+    Query-Parameter:
+    - active: 'true'/'false' - nur aktive Produkte
+    - product_type: Produkt-Typ
+    """
+    start_time = time.time()
+    
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    key_record = verify_api_key(api_key)
+    
+    if not key_record:
+        return jsonify({
+            "success": False,
+            "error": "Ungültiger oder abgelaufener API-Schlüssel"
+        }), 401
+    
+    conn = get_db_connection()
+    
+    active_only = request.args.get('active', 'true').lower() == 'true'
+    product_type = request.args.get('product_type')
+    
+    query = 'SELECT * FROM product_classes WHERE deleted = 0'
+    params = []
+    
+    if active_only:
+        query += ' AND active = 1'
+    
+    if product_type:
+        query += ' AND product_type = ?'
+        params.append(product_type)
+    
+    query += ' ORDER BY name'
+    
+    products = conn.execute(query, params).fetchall()
+    
+    products_data = [{
+        'id': p['id'],
+        'name': p['name'],
+        'description': p['description'],
+        'base_price': float(p['base_price']),
+        'product_type': p['product_type'],
+        'capacity': p['capacity'],
+        'label': p['label'],
+        'active': bool(p['active'])
+    } for p in products]
+    
+    conn.close()
+    
+    response_time = int((time.time() - start_time) * 1000)
+    log_api_usage(key_record['id'], '/api/v1/products', 'GET', 200, response_time, request.remote_addr, request.headers.get('User-Agent'))
+    
+    return jsonify({
+        'success': True,
+        'data': products_data,
+        'meta': {'total': len(products_data)}
+    })
+
+
+@app.route('/api/v1/availability', methods=['GET'])
+def api_availability():
+    """
+    GET /api/v1/availability
+    
+    Gibt Produktverfügbarkeit zurück.
+    
+    Query-Parameter:
+    - product_id: Produkt-ID (erforderlich)
+    - date: Datum (YYYY-MM-DD), optional
+    
+    Antwort:
+    {
+        "success": true,
+        "data": {
+            "product_id": 1,
+            "date": "2024-01-01",
+            "available_quantity": 10,
+            "rule_applied": {...} oder null
+        }
+    }
+    """
+    start_time = time.time()
+    
+    api_key = request.headers.get('X-API-Key') or request.args.get('api_key')
+    key_record = verify_api_key(api_key)
+    
+    if not key_record:
+        return jsonify({
+            "success": False,
+            "error": "Ungültiger oder abgelaufener API-Schlüssel"
+        }), 401
+    
+    product_id = request.args.get('product_id', type=int)
+    if not product_id:
+        return jsonify({
+            "success": False,
+            "error": "product_id ist erforderlich"
+        }), 400
+    
+    date = request.args.get('date') or datetime.now().strftime('%Y-%m-%d')
+    
+    available = get_product_availability_for_date(product_id, date)
+    
+    response_time = int((time.time() - start_time) * 1000)
+    log_api_usage(key_record['id'], '/api/v1/availability', 'GET', 200, response_time, request.remote_addr, request.headers.get('User-Agent'))
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'product_id': product_id,
+            'date': date,
+            'available_quantity': available
+        }
+    })
+
+
+@app.route('/api/v1/health', methods=['GET'])
+def api_health():
+    """Health-Check-Endpunkt"""
+    return jsonify({
+        'success': True,
+        'status': 'healthy',
+        'timestamp': datetime.now().isoformat()
+    })
 
 if __name__ == '__main__':
     app.run(debug=True, host="0.0.0.0", port=1234) 

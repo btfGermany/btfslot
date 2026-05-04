@@ -174,16 +174,23 @@ border-radius: 12px !important;
 <body class="bg-gray-50">
   <div class="flex h-screen">
     <!-- Seitenleiste -->
-    <div class="w-64 bg-white border-r border-gray-200">
+    <div id="sidebar" class="w-64 bg-white border-r border-gray-200 flex flex-col transition-all duration-300 ease-in-out">
+      <!-- Toggle Button -->
+      <button onclick="toggleSidebar()" class="absolute -right-3 top-4 z-10 w-6 h-6 bg-white border border-gray-300 rounded-full flex items-center justify-center hover:bg-gray-100 shadow-sm">
+        <svg id="sidebar-toggle-icon" class="h-4 w-4 text-gray-500 transition-transform duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+      
       <!-- Logo und Titel -->
-      <div class="flex items-center p-4 border-b border-gray-200">
+      <div id="sidebar-header" class="flex items-center p-4 border-b border-gray-200">
         <img src="https://btfmedia.de/favicon.png" alt="Logo" class="h-8 w-8 mr-2">
         <span class="text-lg font-semibold text-gray-800">btfmedia.de</span>
       </div>
       <!-- Navigation -->
-      <nav class="p-2">
+      <nav class="p-2 flex-1 overflow-y-auto">
         <!-- In deinem Navbar-Bereich -->
-        <div class="px-4 py-3">
+        <div class="px-4 py-3" id="sidebar-search">
           <form class="relative" action="{{ url_for('search') }}" method="GET">
             <div class="flex items-center relative">
               <input type="search" 
@@ -200,7 +207,7 @@ border-radius: 12px !important;
             </div>
           </form>
         </div>
-        <ul>
+        <ul id="sidebar-nav">
           <li class="mb-2">
             <a href="{{ url_for('dashboard') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('dashboard') %}bg-gray-100{% endif %}">
               <!-- Dashboard Icon -->
@@ -259,6 +266,33 @@ border-radius: 12px !important;
             </a>
           </li>
           <li class="mb-2">
+            <a href="{{ url_for('payment_settings') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('payment_settings') or '/payment-settings' in request.path %}bg-gray-100{% endif %}">
+              <!-- Zahlungseinstellungen Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+              </svg>
+              Zahlungseinstellungen
+            </a>
+          </li>
+          <li class="mb-2">
+            <a href="{{ url_for('availability_rules') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('availability_rules') or '/availability-rules' in request.path %}bg-gray-100{% endif %}">
+              <!-- Verfügbarkeitsregeln Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+              Verfügbarkeitsregeln
+            </a>
+          </li>
+          <li class="mb-2">
+            <a href="{{ url_for('api_keys') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('api_keys') or '/api-keys' in request.path %}bg-gray-100{% endif %}">
+              <!-- API-Schlüssel Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z" />
+              </svg>
+              API-Schlüssel
+            </a>
+          </li>
+          <li class="mb-2">
             <a href="{{ url_for('current_terminal') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('current_terminal') %}bg-gray-100{% endif %}">
               <!-- Slot-Terminal Icon -->
               <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -296,7 +330,7 @@ border-radius: 12px !important;
           <h1 class="text-2xl font-semibold text-gray-800">{% block header %}Adminbereich{% endblock %}</h1>
         </div>
       </header>
-      <main class="p-4">
+      <main id="main-content" class="flex-1 p-4 ml-64 transition-all duration-300 ease-in-out">
         {% for message in get_flashed_messages() %}
           <div class="bg-blue-50 border-l-4 border-blue-400 text-blue-700 p-4 mb-4" role="alert">
             {{ message }}
@@ -306,5 +340,118 @@ border-radius: 12px !important;
       </main>
     </div>
   </div>
-</body>
+<script>
+      // Sidebar State Management
+      const SIDEBAR_STATE_KEY = 'admin_sidebar_collapsed';
+      const sidebar = document.getElementById('sidebar');
+      const toggleIcon = document.getElementById('sidebar-toggle-icon');
+      const sidebarHeader = document.getElementById('sidebar-header');
+      const sidebarSearch = document.getElementById('sidebar-search');
+      const sidebarNav = document.getElementById('sidebar-nav');
+      const mainContent = document.getElementById('main-content');
+      
+      // Initialize sidebar state from localStorage
+      function initSidebar() {
+        const isCollapsed = localStorage.getItem(SIDEBAR_STATE_KEY) === 'true';
+        if (isCollapsed) {
+          collapseSidebar();
+        } else {
+          expandSidebar();
+        }
+      }
+      
+      function toggleSidebar() {
+        const isCollapsed = sidebar.classList.contains('w-16');
+        if (isCollapsed) {
+          expandSidebar();
+          localStorage.setItem(SIDEBAR_STATE_KEY, 'false');
+        } else {
+          collapseSidebar();
+          localStorage.setItem(SIDEBAR_STATE_KEY, 'true');
+        }
+      }
+      
+      function collapseSidebar() {
+        sidebar.classList.remove('w-64');
+        sidebar.classList.add('w-16');
+        
+        // Rotate toggle icon
+        toggleIcon.classList.remove('rotate-0');
+        toggleIcon.classList.add('rotate-180');
+        
+        // Hide header text
+        if (sidebarHeader) {
+          sidebarHeader.querySelector('span').textContent = '';
+          sidebarHeader.querySelector('img').classList.remove('mr-2');
+        }
+        
+        // Hide search
+        if (sidebarSearch) {
+          sidebarSearch.style.display = 'none';
+        }
+        
+        // Hide nav text, show only icons
+        const navLinks = sidebarNav.querySelectorAll('a');
+        navLinks.forEach(link => {
+          const span = link.querySelector('span');
+          if (span) {
+            const text = span.textContent;
+            link.setAttribute('data-full-text', text);
+            span.textContent = '';
+          }
+          link.classList.add('justify-center');
+          link.setAttribute('title', link.getAttribute('data-full-text') || link.textContent);
+        });
+        
+        // Adjust main content
+        if (mainContent) {
+          mainContent.classList.remove('ml-64');
+          mainContent.classList.add('ml-16');
+        }
+      }
+      
+      function expandSidebar() {
+        sidebar.classList.remove('w-16');
+        sidebar.classList.add('w-64');
+        
+        // Rotate toggle icon back
+        toggleIcon.classList.remove('rotate-180');
+        toggleIcon.classList.add('rotate-0');
+        
+        // Show header text
+        if (sidebarHeader) {
+          sidebarHeader.querySelector('span').textContent = 'btfmedia.de';
+          sidebarHeader.querySelector('img').classList.add('mr-2');
+        }
+        
+        // Show search
+        if (sidebarSearch) {
+          sidebarSearch.style.display = 'block';
+        }
+        
+        // Show nav text
+        const navLinks = sidebarNav.querySelectorAll('a');
+        navLinks.forEach(link => {
+          const fullText = link.getAttribute('data-full-text');
+          if (fullText) {
+            const span = link.querySelector('span');
+            if (span) {
+              span.textContent = fullText;
+            }
+          }
+          link.classList.remove('justify-center');
+          link.removeAttribute('title');
+        });
+        
+        // Adjust main content
+        if (mainContent) {
+          mainContent.classList.remove('ml-16');
+          mainContent.classList.add('ml-64');
+        }
+      }
+      
+      // Initialize on page load
+      document.addEventListener('DOMContentLoaded', initSidebar);
+    </script>
+  </body>
 </html>

@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Zahlungseinstellungen - Admin</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <span class="text-xl font-medium">BTF Slot Verwaltung</span>
+                    </div>
+                    <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
+                        <a href="{{ url_for('dashboard') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Dashboard
+                        </a>
+                        <a href="{{ url_for('users') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Benutzer
+                        </a>
+                        <a href="{{ url_for('products') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Produkte
+                        </a>
+                        <a href="{{ url_for('time_slots') }}" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
+                            Zeitfenster
+                        </a>
+                    </div>
+                </div>
+                <div class="flex items-center">
+                    <a href="{{ url_for('logout') }}" class="text-sm text-gray-500 hover:text-gray-700">
+                        Abmelden
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+        <div class="px-4 py-6 sm:px-0">
+            <!-- Page Header -->
+            <div class="mb-6">
+                <h1 class="text-2xl font-medium text-gray-900">Zahlungseinstellungen</h1>
+                <p class="mt-1 text-sm text-gray-500">
+                    Konfigurieren Sie PayPal als Zahlungsmethode und legen Sie fest, ob Barzahlung vor Ort möglich ist.
+                </p>
+            </div>
+
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="mb-4 p-4 rounded-md {% if category == 'success' %}bg-green-50 text-green-700 border border-green-200{% else %}bg-red-50 text-red-700 border border-red-200{% endif %}">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Settings Form -->
+            <div class="bg-white shadow rounded-lg">
+                <form method="POST" action="{{ url_for('payment_settings') }}">
+                    <div class="px-6 py-6 space-y-6">
+                        
+                        <!-- PayPal Configuration -->
+                        <div class="border-b border-gray-200 pb-6">
+                            <h2 class="text-lg font-medium text-gray-900 mb-4">PayPal-Einstellungen</h2>
+                            
+                            <div class="grid grid-cols-1 gap-6">
+                                <!-- Enable PayPal -->
+                                <div class="flex items-start">
+                                    <div class="flex items-center h-5">
+                                        <input type="checkbox" 
+                                               id="paypal_enabled" 
+                                               name="paypal_enabled"
+                                               {% if settings.paypal_enabled %}checked{% endif %}
+                                               class="h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500">
+                                    </div>
+                                    <div class="ml-3 text-sm">
+                                        <label for="paypal_enabled" class="font-medium text-gray-700">PayPal aktivieren</label>
+                                        <p class="text-gray-500">Aktivieren Sie diese Option, um PayPal als Zahlungsmethode anzubieten.</p>
+                                    </div>
+                                </div>
+
+                                <!-- PayPal Email -->
+                                <div>
+                                    <label for="paypal_email" class="block text-sm font-medium text-gray-700">PayPal-E-Mail-Adresse</label>
+                                    <input type="email" 
+                                           name="paypal_email" 
+                                           id="paypal_email"
+                                           value="{{ settings.paypal_email or '' }}"
+                                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                                           placeholder="ihre-email@beispiel.de">
+                                    <p class="mt-1 text-xs text-gray-500">Die E-Mail-Adresse Ihres PayPal-Kontos.</p>
+                                </div>
+
+                                <!-- PayPal Client ID -->
+                                <div>
+                                    <label for="paypal_client_id" class="block text-sm font-medium text-gray-700">PayPal Client ID</label>
+                                    <input type="text" 
+                                           name="paypal_client_id" 
+                                           id="paypal_client_id"
+                                           value="{{ settings.paypal_client_id or '' }}"
+                                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                                           placeholder="Ihre PayPal Client ID">
+                                </div>
+
+                                <!-- PayPal Secret -->
+                                <div>
+                                    <label for="paypal_secret" class="block text-sm font-medium text-gray-700">PayPal Secret</label>
+                                    <input type="password" 
+                                           name="paypal_secret" 
+                                           id="paypal_secret"
+                                           value="{{ settings.paypal_secret or '' }}"
+                                           class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm"
+                                           placeholder="Ihre PayPal Secret">
+                                </div>
+
+                                <!-- PayPal Mode -->
+                                <div>
+                                    <label for="paypal_mode" class="block text-sm font-medium text-gray-700">PayPal-Modus</label>
+                                    <select name="paypal_mode" 
+                                            id="paypal_mode"
+                                            class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-gray-500 focus:border-gray-500 sm:text-sm">
+                                        <option value="sandbox" {% if settings.paypal_mode == 'sandbox' %}selected{% endif %}>Sandbox (Testmodus)</option>
+                                        <option value="live" {% if settings.paypal_mode == 'live' %}selected{% endif %}>Live (Produktivmodus)</option>
+                                    </select>
+                                    <p class="mt-1 text-xs text-gray-500">
+                                        Im Sandbox-Modus können Sie PayPal ohne echte Transaktionen testen.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Payment Options -->
+                        <div class="border-b border-gray-200 pb-6">
+                            <h2 class="text-lg font-medium text-gray-900 mb-4">Zahlungsoptionen</h2>
+                            
+                            <div class="space-y-4">
+                                <!-- Force PayPal -->
+                                <div class="flex items-start">
+                                    <div class="flex items-center h-5">
+                                        <input type="checkbox" 
+                                               id="force_paypal" 
+                                               name="force_paypal"
+                                               {% if settings.force_paypal %}checked{% endif %}
+                                               class="h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500">
+                                    </div>
+                                    <div class="ml-3 text-sm">
+                                        <label for="force_paypal" class="font-medium text-gray-700">PayPal als Pflichtzahlungsmethode</label>
+                                        <p class="text-gray-500">
+                                            Wenn aktiviert, können Kunden nicht mehr vor Ort in bar zahlen. 
+                                            Die Bestellung kann nur noch über PayPal bezahlt werden.
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Allow Cash Payment -->
+                                <div class="flex items-start">
+                                    <div class="flex items-center h-5">
+                                        <input type="checkbox" 
+                                               id="allow_cash_payment" 
+                                               name="allow_cash_payment"
+                                               {% if settings.allow_cash_payment %}checked{% endif %}
+                                               class="h-4 w-4 text-gray-900 border-gray-300 rounded focus:ring-gray-500">
+                                    </div>
+                                    <div class="ml-3 text-sm">
+                                        <label for="allow_cash_payment" class="font-medium text-gray-700">Barzahlung vor Ort erlauben</label>
+                                        <p class="text-gray-500">
+                                            Aktivieren Sie dies, um Kunden die Barzahlung bei Abholung zu ermöglichen.
+                                            Wenn "PayPal als Pflichtzahlungsmethode" aktiviert ist, wird diese Option ignoriert.
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Info Box -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-md p-4">
+                            <div class="flex">
+                                <div class="flex-shrink-0">
+                                    <svg class="h-5 w-5 text-blue-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                                        <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd" />
+                                    </svg>
+                                </div>
+                                <div class="ml-3">
+                                    <h3 class="text-sm font-medium text-blue-800">Hinweis</h3>
+                                    <div class="mt-2 text-sm text-blue-700">
+                                        <p>Um PayPal in Ihrem Shop zu verwenden, benötigen Sie ein PayPal-Konto. 
+                                           Erstellen Sie eine App im PayPal Developer Dashboard, um Client ID und Secret zu erhalten.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
+
+                    <!-- Form Actions -->
+                    <div class="px-6 py-4 bg-gray-50 flex justify-end rounded-b-lg">
+                        <button type="submit" 
+                                class="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-gray-900 hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
+                            Einstellungen speichern
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
