@@ -1,0 +1,310 @@
+<!-- templates/admin/base.html -->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Adminbereich{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    input[type="text"] {
+        border-bottom: 1px solid #ccc !important;
+        padding-bottom: 10px !important;
+        border-radius: 0px !important;
+        place-content: "Text";
+        outline: none;
+        font-size: 1.0rem;
+    }
+    textarea {
+        border-bottom: 1px solid #ccc !important;
+        padding-bottom: 10px !important;
+        border-radius: 0px !important;
+        place-content: "Text";
+        outline: none;
+        font-size: 0.8rem;
+    }
+    input[type="number"] {
+        border-bottom: 1px solid #ccc !important;
+        padding-bottom: 10px !important;
+        border-radius: 0px !important;
+        outline: none;
+        font-size: 1.0rem;
+    }
+    select {
+        border: 1px solid #ccc !important;
+border-radius: 12px !important;
+        padding: 10px !important;
+        
+        outline: none !important;
+        font-size: 1.0rem;
+    }
+    .btf-sel {
+        border: 1px solid #ccc !important;
+border-radius: 12px !important;
+        padding: 10px !important;
+        
+        outline: none !important;
+        font-size: 1.0rem;
+    }
+    input::placeholder {
+  color: gray;
+  font-style: italic;
+}
+
+
+    /* Grundlegendes Styling für alle Checkboxen */
+    input[type="checkbox"] {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      position: relative;
+      width: 22px;
+      height: 22px;
+      border: 2px solid #ddd;
+      border-radius: 4px;
+      background-color: white;
+      margin-right: 12px;
+      vertical-align: middle;
+      cursor: pointer;
+      transition: all 0.2s ease-in-out;
+      outline: none;
+    }
+    
+    /* Hover-Effekt */
+    input[type="checkbox"]:hover {
+      border-color: black;
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+    
+    /* Focus-Zustand für Tastaturzugriff */
+    input[type="checkbox"]:focus {
+      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.25);
+    }
+    
+    /* Checked-Zustand */
+    input[type="checkbox"]:checked {
+      background-color: black;
+      border-color: black;
+    }
+    
+    /* Häkchen-Symbol mit ::after Pseudo-Element */
+    input[type="checkbox"]:checked::after {
+      content: "";
+      position: absolute;
+      left: 8px;
+      top: 4px;
+      width: 5px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+      animation: check-animation 0.3s cubic-bezier(0.68, -0.55, 0.27, 1.55) forwards;
+    }
+    
+    /* Deaktivierter Zustand */
+    input[type="checkbox"]:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    
+    /* Animation für das Häkchen */
+    @keyframes check-animation {
+      0% {
+        opacity: 0;
+        transform: rotate(45deg) scale(0.5);
+      }
+      50% {
+        opacity: 1;
+        transform: rotate(45deg) scale(1.2);
+      }
+      100% {
+        opacity: 1;
+        transform: rotate(45deg) scale(1);
+      }
+    }
+    
+    /* Varianten über Klassen */
+    input[type="checkbox"].rounded {
+      border-radius: 50%;
+    }
+    
+    input[type="checkbox"].green:checked {
+      background-color: #2ecc71;
+      border-color: #2ecc71;
+    }
+    
+    input[type="checkbox"].red:checked {
+      background-color: #e74c3c;
+      border-color: #e74c3c;
+    }
+    
+    /* Labels neben Checkboxen stylen */
+    label {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      padding: 5px 0;
+      user-select: none;
+    }
+    
+    /* Wenn eine Checkbox innerhalb eines Labels liegt */
+    label input[type="checkbox"] {
+      margin-right: 12px;
+    }
+    
+    /* Responsive Anpassungen */
+    @media (max-width: 768px) {
+      .container {
+        padding: 20px;
+      }
+      
+      input[type="checkbox"] {
+        width: 20px;
+        height: 20px;
+      }
+      
+      input[type="checkbox"]:checked::after {
+        left: 7px;
+        top: 3px;
+      }
+    }
+
+</style>
+</head>
+<body class="bg-gray-50">
+  <div class="flex h-screen">
+    <!-- Seitenleiste -->
+    <div class="w-64 bg-white border-r border-gray-200">
+      <!-- Logo und Titel -->
+      <div class="flex items-center p-4 border-b border-gray-200">
+        <img src="https://btfmedia.de/favicon.png" alt="Logo" class="h-8 w-8 mr-2">
+        <span class="text-lg font-semibold text-gray-800">btfmedia.de</span>
+      </div>
+      <!-- Navigation -->
+      <nav class="p-2">
+        <!-- In deinem Navbar-Bereich -->
+        <div class="px-4 py-3">
+          <form class="relative" action="{{ url_for('search') }}" method="GET">
+            <div class="flex items-center relative">
+              <input type="search" 
+                     name="q"
+                     class="w-full p-2 pl-10 bg-gray-50 border-b focus:border-gray-500 transition-colors"
+                     placeholder="Bestellnummer, Name, Produkt..."
+                     aria-label="Search"
+                     value="{{ request.args.get('q', '') }}">
+              <div class="absolute left-2 top-2 text-gray-500">
+                <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </div>
+            </div>
+          </form>
+        </div>
+        <ul>
+          <li class="mb-2">
+            <a href="{{ url_for('dashboard') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('dashboard') %}bg-gray-100{% endif %}">
+              <!-- Dashboard Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M13 5v14" />
+              </svg>
+              Übersicht
+            </a>
+          </li>
+          <li class="mb-2">
+            <a href="{{ url_for('manage_products') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path.startswith('/admin/products') %}bg-gray-100{% endif %}">
+              <!-- Produkte Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V7a2 2 0 00-2-2H6a2 2 0 00-2 2v6M4 17h16" />
+              </svg>
+              Produkte
+            </a>
+          </li>
+          <li class="mb-2">
+            <a href="{{ url_for('manage_time_slots') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path.startswith('/admin/time-slots') %}bg-gray-100{% endif %}">
+              <!-- Zeitfenster Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Zeitfenster
+            </a>
+          </li>
+          <li class="mb-2">
+            <a href="{{ url_for('manage_users') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path.startswith('/admin/users') %}bg-gray-100{% endif %}">
+              <!-- Zeitfenster Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A9 9 0 0112 15a9 9 0 016.879 2.804M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              
+              Nutzer
+            </a>
+          </li>
+          
+          
+          <li class="mb-2">
+            <a href="{{ url_for('incoming_terminal') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('incoming_terminal') %}bg-gray-100{% endif %}">
+              <!-- Eingehende Bestellungen Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-6a2 2 0 012-2h2a2 2 0 012 2v6m-6 4h6" />
+              </svg>
+              Eingehende Bestellungen
+            </a>
+          </li>
+          <li class="mb-2">
+            <a href="{{ url_for('outgoing_terminal') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('outgoing_terminal') %}bg-gray-100{% endif %}">
+              <!-- Ausgehende Bestellungen Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12H9m6 0l-3-3m3 3l-3 3" />
+              </svg>
+              Ausgehende Bestellungen
+            </a>
+          </li>
+          <li class="mb-2">
+            <a href="{{ url_for('current_terminal') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('current_terminal') %}bg-gray-100{% endif %}">
+              <!-- Slot-Terminal Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M5 11h14M5 19h14M5 15h14" />
+              </svg>
+              Slot-Terminal
+            </a>
+          </li>
+          <li class="mb-2">
+            <a href="{{ url_for('calendar_view') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path == url_for('calendar_view') %}bg-gray-100{% endif %}">
+              <!-- Kalender Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3M3 11h18M5 5h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2z" />
+              </svg>
+              Kalender
+            </a>
+          </li>
+          <li>
+            <a href="{{ url_for('logout') }}" class="flex items-center p-2 rounded hover:bg-gray-100">
+              <!-- Logout Icon -->
+              <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1m0-10V5" />
+              </svg>
+              Abmelden
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </div>
+
+    <!-- Hauptinhalt -->
+    <div class="flex-1 overflow-y-auto">
+      <header class="bg-white border-b border-gray-200">
+        <div class="px-4 py-4">
+          <h1 class="text-2xl font-semibold text-gray-800">{% block header %}Adminbereich{% endblock %}</h1>
+        </div>
+      </header>
+      <main class="p-4">
+        {% for message in get_flashed_messages() %}
+          <div class="bg-blue-50 border-l-4 border-blue-400 text-blue-700 p-4 mb-4" role="alert">
+            {{ message }}
+          </div>
+        {% endfor %}
+        {% block content %}{% endblock %}
+      </main>
+    </div>
+  </div>
+</body>
+</html>

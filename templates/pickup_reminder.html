@@ -1,0 +1,34 @@
+{% extends "base_email.html" %}
+
+{% block title %}Erinnerung an Ihre Abholung{% endblock %}
+
+{% block content %}
+<h1>Erinnerung an Ihre Abholung</h1>
+
+<p>Sehr geehrte(r) Kunde/Kundin,</p>
+
+<p>Ihre Bestellung #{{ order.order_number }} ist bald Fertig!</p>
+
+<div class="summary">
+    <p><strong>Bestellnummer:</strong> #{{ order.order_number }}</p>
+    <p><strong>Abholzeit:</strong> {{ order.pickup_time }}</p>
+    {% if order.pickup_location %}
+    <p><strong>Abholort:</strong> {{ order.pickup_location }}</p>
+    {% endif %}
+</div>
+
+<p>Bitte bringen Sie Ihre Bestellnummer mit, um die Abholung zu beschleunigen.</p>
+
+{% if order.special_instructions %}
+<p><strong>Besondere Hinweise:</strong><br>
+{{ order.special_instructions }}</p>
+{% endif %}
+
+<p style="text-align: center;">
+    <a href="{{ server_url }}/track/{{ order.order_number }}" class="btn">Bestelldetails anzeigen</a>
+</p>
+
+
+<p>Mit freundlichen Grüßen,<br>
+Ihr Shop-Team</p>
+{% endblock %}

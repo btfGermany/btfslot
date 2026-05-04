@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fehler</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-red-600 text-white shadow-md">
+        <div class="container mx-auto px-4 py-6">
+            <h1 class="text-3xl font-semibold">Fehler aufgetreten</h1>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow flex items-center justify-center px-4">
+        <div class="bg-white rounded-2xl p-8 max-w-xl w-full text-center">
+            <div class="text-6xl text-red-500 mb-4">⚠️</div>
+            <h2 class="text-2xl font-bold mb-2">Ein Fehler ist aufgetreten</h2>
+            <p class="text-gray-600 mb-6 text-lg">{{ error }}</p>
+
+            <div class="flex flex-col sm:flex-row justify-center gap-4">
+                <a href="{{ url_for('index') }}" class="px-6 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition">Zurück zur Startseite</a>
+                <a href="{{ url_for('cart') }}" class="px-6 py-3 bg-gray-300 text-gray-800 rounded-xl hover:bg-gray-400 transition">Zurück zum Warenkorb</a>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-8">
+        <div class="container mx-auto px-4 py-6 text-center text-sm text-gray-500">
+           btfmedia.de
+        </div>
+    </footer>
+
+</body>
+</html>

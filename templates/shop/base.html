@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ihr Restaurant</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<style>
+    .demo {
+        padding: 5px;
+        background: green;
+        color: white;
+    }
+    .beta {
+        padding: 5px;
+        background: blue ;
+        color: white;
+    }
+</style>
+<body class="bg-gray-50" id="main-body">
+<!-- Bedienungshilfen-Panel -->
+<div id="accessibility-panel" class="fixed top-0 right-0 bg-white border border-gray-300 p-4 shadow-lg z-50 transition-transform" style="transform: translateX(100%);">
+  <h2 class="text-lg font-bold mb-4">Bedienungshilfen <span class="beta">BETA</span></h2>
+  <div class="space-y-3">
+    <div>
+  <input type="checkbox hidden" id="high-contrast" class="mr-2">
+      <!-- <label for="high-contrast hidden">Hoher Kontrast</label> -->
+    </div>
+    <div>
+      <input type="checkbox" id="large-text" class="mr-2">
+      <label for="large-text">Größere Schrift</label>
+    </div>
+
+    <div>
+      <button id="read-aloud" class="mt-2 bg-blue-500 text-white px-3 py-1 rounded hover:bg-blue-600">Text vorlesen</button>
+      <button id="stop-reading" class="mt-2 bg-red-500 text-white px-3 py-1 rounded hover:bg-red-600 hidden">Vorlesen stoppen</button>
+      <div id="speech-not-supported" class="mt-2 text-red-600 hidden">Sprachausgabe wird auf Ihrem Gerät nicht unterstützt</div>
+    </div>
+  </div>
+</div>
+
+<!-- Bedienungshilfen-Button -->
+<button id="accessibility-toggle" class="fixed bottom-0 right-0 bg-blue-600 text-white text-lg p-4  shadow-lg z-40" aria-label="Bedienungshilfen einblenden">
+  <i class="fas fa-universal-access"></i>
+</button>
+
+<!-- Navigation -->
+<nav class="bg-white border-b border-gray-200">
+<div class="container mx-auto px-4">
+<div class="flex justify-between h-14">
+<div class="flex items-center">
+<a href="{{ url_for('index') }}" class="text-xl font-medium text-black">Ihr Restaurant</a>
+<div class="hidden md:flex items-center ml-8 space-x-6">
+<a href="{{ url_for('index') }}" class="text-gray-700 hover:text-black">Produkte</a>
+<a href="{{ url_for('cart') }}" class="text-gray-700 hover:text-black">Warenkorb</a>
+</div>
+</div>
+<div class="flex items-center">
+<a href="{{ url_for('cart') }}" class="p-2 text-gray-700 hover:text-black" aria-label="Warenkorb">
+<i class="fas fa-shopping-cart"></i>
+<span class="ml-1 bg-gray-100 text-gray-800 px-2 py-0.5 text-sm">
+ {{ session['cart']|length if 'cart' in session else 0 }}
+</span>
+</a>
+</div>
+</div>
+</div>
+</nav>
+<!-- Content -->
+<main class="container mx-auto px-4 py-6">
+ {% with messages = get_flashed_messages(with_categories=true) %}
+ {% if messages %}
+ {% for category, message in messages %}
+<div class="mb-4 p-3 border {{ 'border-red-500 bg-red-50 text-red-800' if category == 'error' else 'border-green-500 bg-green-50 text-green-800' }}">
+ {{ message }}
+</div>
+ {% endfor %}
+ {% endif %}
+ {% endwith %}
+ {% block content %}{% endblock %}
+</main>
+<!-- Footer -->
+<footer class="bg-white border-t mt-8">
+<div class="container mx-auto py-6 px-4 text-center text-gray-600">
+&copy; 2024 Ihr Restaurant. Alle Rechte vorbehalten. <span class="demo">Dies ist nur eine Demo</span>
+</div>
+</footer>
+<script>
+// Produkt-Preisberechnung
+function updatePrice() {
+  let basePrice = parseFloat(document.getElementById('base-price').dataset.value);
+  let additions = Array.from(document.querySelectorAll('[data-price-addition]:checked'))
+    .reduce((sum, el) => sum + parseFloat(el.dataset.priceAddition), 0);
+  document.getElementById('total-price').textContent = (basePrice + additions).toFixed(2);
+}
+
+// Bedienungshilfen
+document.addEventListener('DOMContentLoaded', function() {
+  const accessibilityToggle = document.getElementById('accessibility-toggle');
+  const accessibilityPanel = document.getElementById('accessibility-panel');
+  const body = document.getElementById('main-body');
+  const highContrastCheckbox = document.getElementById('high-contrast');
+  const largeTextCheckbox = document.getElementById('large-text');
+  const readAloudBtn = document.getElementById('read-aloud');
+  const stopReadingBtn = document.getElementById('stop-reading');
+  const speechNotSupported = document.getElementById('speech-not-supported');
+  
+  // Einstellungen aus LocalStorage laden
+  loadAccessibilitySettings();
+  
+  // Panel ein-/ausblenden
+  accessibilityToggle.addEventListener('click', function() {
+    if (accessibilityPanel.style.transform === 'translateX(100%)') {
+      accessibilityPanel.style.transform = 'translateX(0)';
+      accessibilityToggle.setAttribute('aria-expanded', 'true');
+    } else {
+      accessibilityPanel.style.transform = 'translateX(100%)';
+      accessibilityToggle.setAttribute('aria-expanded', 'false');
+    }
+  });
+  
+  // Hoher Kontrast
+  highContrastCheckbox.addEventListener('change', function() {
+    if (this.checked) {
+      applyHighContrast(true);
+    } else {
+      applyHighContrast(false);
+    }
+    saveSettings('highContrast', this.checked);
+  });
+  
+  // Größere Schrift
+  largeTextCheckbox.addEventListener('change', function() {
+    if (this.checked) {
+      applyLargeText(true);
+    } else {
+      applyLargeText(false);
+    }
+    saveSettings('largeText', this.checked);
+  });
+  
+  // Fokushervorhebung
+  document.getElementById('focus-visible')?.addEventListener('change', function() {
+    if (this.checked) {
+      applyFocusVisible(true);
+      saveSettings('focusVisible', true);
+    } else {
+      applyFocusVisible(false);
+      saveSettings('focusVisible', false);
+    }
+  });
+  
+  // Text vorlesen (Sprachsynthese)
+  let speechSynthesis = window.speechSynthesis;
+  let utterance;
+  
+  // Überprüfen, ob Sprachsynthese unterstützt wird
+  if (!window.speechSynthesis) {
+    readAloudBtn.classList.add('hidden');
+    speechNotSupported.classList.remove('hidden');
+  } else {
+    // Text vorlesen
+    readAloudBtn.addEventListener('click', function() {
+      // Aktuelle Seite vorlesen
+      const textToRead = document.querySelector('main').textContent.trim();
+      utterance = new SpeechSynthesisUtterance(textToRead);
+      
+      // Versuche eine deutsche Stimme zu finden, falls verfügbar
+      let voices = speechSynthesis.getVoices();
+      let germanVoice = voices.find(voice => voice.lang.includes('de'));
+      if (germanVoice) {
+        utterance.voice = germanVoice;
+      }
+      
+      utterance.lang = 'de-DE';
+      utterance.rate = 0.9; // Etwas langsamer für bessere Verständlichkeit
+      
+      try {
+        speechSynthesis.speak(utterance);
+        readAloudBtn.classList.add('hidden');
+        stopReadingBtn.classList.remove('hidden');
+        
+        // Ereignisbehandlung für das Ende der Sprachausgabe
+        utterance.onend = function() {
+          stopReadingBtn.classList.add('hidden');
+          readAloudBtn.classList.remove('hidden');
+        };
+        
+        // Fehlerbehandlung
+        utterance.onerror = function() {
+          speechNotSupported.classList.remove('hidden');
+          stopReadingBtn.classList.add('hidden');
+          readAloudBtn.classList.remove('hidden');
+          setTimeout(() => {
+            speechNotSupported.classList.add('hidden');
+          }, 3000);
+        };
+      } catch (error) {
+        console.error("Fehler bei der Sprachausgabe:", error);
+        speechNotSupported.classList.remove('hidden');
+        setTimeout(() => {
+          speechNotSupported.classList.add('hidden');
+        }, 3000);
+      }
+    });
+    
+    // Unterstützung für zusätzliche Voices nach dem Laden
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+      speechSynthesis.onvoiceschanged = function() {
+        // Voices sind jetzt geladen
+      };
+    }
+  }
+  
+  // Stoppen der Sprachausgabe
+  stopReadingBtn.addEventListener('click', function() {
+    if (speechSynthesis) {
+      speechSynthesis.cancel();
+      stopReadingBtn.classList.add('hidden');
+      readAloudBtn.classList.remove('hidden');
+    }
+  });
+  
+  // Tastaturnavigation ermöglichen
+  document.addEventListener('keydown', function(e) {
+    // ESC zum Schließen des Bedienungshilfen-Panels
+    if (e.key === 'Escape' && accessibilityPanel.style.transform === 'translateX(0)') {
+      accessibilityPanel.style.transform = 'translateX(100%)';
+      accessibilityToggle.setAttribute('aria-expanded', 'false');
+    }
+    
+    // Alt+A zum Öffnen des Bedienungshilfen-Panels
+    if (e.altKey && e.key === 'a') {
+      if (accessibilityPanel.style.transform === 'translateX(100%)') {
+        accessibilityPanel.style.transform = 'translateX(0)';
+        accessibilityToggle.setAttribute('aria-expanded', 'true');
+      } else {
+        accessibilityPanel.style.transform = 'translateX(100%)';
+        accessibilityToggle.setAttribute('aria-expanded', 'false');
+      }
+    }
+  });
+  
+  // Funktionen zur Verwaltung von Bedienungshilfen
+  function applyHighContrast(enable) {
+  if (enable) {
+    // Hintergrund und Standard-Text
+    document.body.classList.add('bg-black', 'text-white');
+    
+    // Navigation und Footer
+    document.querySelectorAll('nav, footer').forEach(el => {
+      el.classList.remove('bg-white');
+      el.classList.add('bg-black');
+      el.classList.remove('border-gray-200');
+      el.classList.add('border-yellow-400');
+    });
+    
+    // Links und Icons
+    document.querySelectorAll('a, i').forEach(el => {
+      el.classList.remove('text-gray-700', 'text-black', 'text-gray-600');
+      el.classList.add('text-yellow-400');
+    });
+    
+    // Produktkarten und Container
+    document.querySelectorAll('.bg-white').forEach(el => {
+      el.classList.remove('bg-white');
+      el.classList.add('bg-black');
+    });
+    
+    // Rahmen 
+    document.querySelectorAll('.border').forEach(el => {
+      if (el.classList.contains('border-gray-200')) {
+        el.classList.remove('border-gray-200');
+      }
+      el.classList.add('border-yellow-400');
+    });
+    
+    // Spezielle Textelemente für Kontrast
+    document.querySelectorAll('.text-gray-500, .text-gray-600').forEach(el => {
+      el.classList.remove('text-gray-500', 'text-gray-600');
+      el.classList.add('text-yellow-200');
+    });
+    
+    // Buttons und interaktive Elemente
+    document.querySelectorAll('button, .button-enabled').forEach(el => {
+      if (el.classList.contains('bg-black')) {
+        el.classList.remove('bg-black');
+        el.classList.add('bg-yellow-600', 'text-black');
+      }
+    });
+    
+    // Formularelemente
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+      el.classList.add('bg-gray-800', 'text-white', 'border-yellow-400');
+    });
+    
+    // Optionskarten für Produkte
+    document.querySelectorAll('.peer-checked\\:bg-gray-50').forEach(el => {
+      el.classList.remove('peer-checked:bg-gray-50');
+      el.classList.add('peer-checked:bg-gray-800');
+    });
+    
+    document.querySelectorAll('.peer-checked\\:border-black').forEach(el => {
+      el.classList.remove('peer-checked:border-black');
+      el.classList.add('peer-checked:border-yellow-400');
+    });
+  } else {
+    // Zurücksetzen auf Standardwerte
+    document.body.classList.remove('bg-black', 'text-white');
+    
+    document.querySelectorAll('nav, footer').forEach(el => {
+      el.classList.add('bg-white');
+      el.classList.remove('bg-black');
+      el.classList.add('border-gray-200');
+      el.classList.remove('border-yellow-400');
+    });
+    
+    document.querySelectorAll('a').forEach(el => {
+      el.classList.remove('text-yellow-400');
+      if (el.closest('nav')) {
+        el.classList.add('text-gray-700');
+      }
+    });
+    
+    document.querySelectorAll('i').forEach(el => {
+      el.classList.remove('text-yellow-400');
+    });
+    
+    document.querySelectorAll('.bg-black').forEach(el => {
+      el.classList.remove('bg-black');
+      el.classList.add('bg-white');
+    });
+    
+    document.querySelectorAll('.border-yellow-400').forEach(el => {
+      el.classList.remove('border-yellow-400');
+      el.classList.add('border-gray-200');
+    });
+    
+    document.querySelectorAll('.text-yellow-200').forEach(el => {
+      el.classList.remove('text-yellow-200');
+      if (el.classList.contains('ml-4')) {
+        el.classList.add('text-gray-500');
+      } else {
+        el.classList.add('text-gray-600');
+      }
+    });
+    
+    document.querySelectorAll('button, .button-enabled').forEach(el => {
+      if (el.classList.contains('bg-yellow-600')) {
+        el.classList.remove('bg-yellow-600', 'text-black');
+        el.classList.add('bg-black', 'text-white');
+      }
+    });
+    
+    document.querySelectorAll('input, select, textarea').forEach(el => {
+      el.classList.remove('bg-gray-800', 'text-white', 'border-yellow-400');
+    });
+    
+    document.querySelectorAll('.peer-checked\\:bg-gray-800').forEach(el => {
+      el.classList.remove('peer-checked:bg-gray-800');
+      el.classList.add('peer-checked:bg-gray-50');
+    });
+    
+    document.querySelectorAll('.peer-checked\\:border-yellow-400').forEach(el => {
+      el.classList.remove('peer-checked:border-yellow-400');
+      el.classList.add('peer-checked:border-black');
+    });
+  }
+}
+  function applyLargeText(enable) {
+    if (enable) {
+      document.body.style.fontSize = '120%';
+      document.querySelectorAll('h1').forEach(el => {
+        el.style.fontSize = '2.4rem';
+      });
+      document.querySelectorAll('h2').forEach(el => {
+        el.style.fontSize = '2rem';
+      });
+    } else {
+      document.body.style.fontSize = '';
+      document.querySelectorAll('h1, h2').forEach(el => {
+        el.style.fontSize = '';
+      });
+    }
+  }
+  
+  function applyFocusVisible(enable) {
+    const allFocusableElements = 'a, button, input, select, textarea, [tabindex]:not([tabindex="-1"])';
+    if (enable) {
+      document.querySelectorAll(allFocusableElements).forEach(el => {
+        el.classList.add('focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500', 'focus:ring-offset-2');
+      });
+    } else {
+      document.querySelectorAll(allFocusableElements).forEach(el => {
+        el.classList.remove('focus:outline-none', 'focus:ring-2', 'focus:ring-blue-500', 'focus:ring-offset-2');
+      });
+    }
+  }
+  
+  // Local Storage Funktionen
+  function saveSettings(setting, value) {
+    try {
+      localStorage.setItem('accessibility_' + setting, value);
+    } catch (e) {
+      console.error('LocalStorage ist nicht verfügbar:', e);
+    }
+  }
+  
+  function loadAccessibilitySettings() {
+    try {
+      // Hoher Kontrast
+      const highContrast = localStorage.getItem('accessibility_highContrast') === 'true';
+      highContrastCheckbox.checked = highContrast;
+      if (highContrast) applyHighContrast(true);
+      
+      // Größere Schrift
+      const largeText = localStorage.getItem('accessibility_largeText') === 'true';
+      largeTextCheckbox.checked = largeText;
+      if (largeText) applyLargeText(true);
+      
+      // Fokushervorhebung
+      const focusVisibleCheckbox = document.getElementById('focus-visible');
+      if (focusVisibleCheckbox) {
+        const focusVisible = localStorage.getItem('accessibility_focusVisible') === 'true';
+        focusVisibleCheckbox.checked = focusVisible;
+        if (focusVisible) applyFocusVisible(true);
+      }
+    } catch (e) {
+      console.error('Fehler beim Laden der Einstellungen:', e);
+    }
+  }
+});
+</script>
+</body>
+</html>

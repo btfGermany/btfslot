@@ -1,0 +1,282 @@
+{% extends "shop/base.html" %}
+{% block title %}Bestellverfolgung{% endblock %}
+{% block content %}
+<style>
+  .countdown-display {
+    font-variant-numeric: tabular-nums;
+    font-weight: bold;
+  }
+</style>
+<!-- Fullscreen Modal -->
+<div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden" id="timeoutModal">
+    <div class="bg-white shadow-lg max-w-md w-full p-6 border border-gray-200">
+      <div class="flex items-center gap-3 mb-4">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <h2 class="text-xl font-bold">Gibt es schon etwas neues zur Bestellung?</h2>
+      </div>
+      <p class="mb-6 text-gray-600">Laden Sie die Seite neu um die Aktualisierten Details zur Bestellung einzusehen!</p>
+      <button onclick="location.reload()" class="w-full bg-black text-white py-3 rounded-md flex items-center justify-center gap-2 hover:bg-gray-800 transition-colors">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        Jetzt aktualisieren und nichts verpassen!
+      </button>
+    </div>
+  </div>
+  
+  <script>
+    // Timer starten – 7 Minuten = 420000 ms
+    setTimeout(() => {
+      document.getElementById("timeoutModal").style.display = "block";
+    }, 420000);
+  </script>
+<div class="container mx-auto px-0 py-6">
+    <h1 class="text-2xl font-medium mb-4">Bestellverfolgung #{{ order.order_number }}</h1>
+    
+    <div class="bg-white border border-gray-200">
+        <!-- Pickup Countdown Notice -->
+        <div id="pickupNotification" class="p-4 border-b bg-green-50 hidden">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 mt-0.5">
+                    <svg class="h-5 w-5 text-green-600" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-lg font-medium text-green-800">Abholung steht kurz bevor!</h3>
+                    <div class="mt-2 text-green-800">
+                        <p class="text-base">Ihre Bestellung ist zur Abholung bereit um <span class="font-bold">{{ order.pickup_time }} Uhr</span>.</p>
+                        <p class="text-base mt-2">Noch <span id="countdownDisplay" class="countdown-display text-green-700 text-xl"></span> bis zur Abholung.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Order Status -->
+        <div class="p-4 border-b">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h2 class="text-lg font-medium">Bestellstatus</h2>
+                    <p class="text-gray-500">Letzte Aktualisierung: {{ now|datetimeformat }}</p>
+                </div>
+                <span class="px-3 py-1 rounded-full text-sm font-medium 
+                    {% if order.status == 'new' %}bg-blue-100 text-blue-800
+                    {% elif order.status == 'in_progress' %}bg-yellow-100 text-yellow-800
+                    {% elif order.status == 'ready' %}bg-green-100 text-green-800
+                    {% elif order.status == 'completed' %}bg-gray-100 text-gray-800
+                    {% endif %}">
+                    {{ order.status|replace('_', ' ')|title }}
+                </span>
+            </div>
+            
+            <!-- Status Progress Bar -->
+            <div class="mt-6">
+                <div class="flex items-center">
+                    {% set statuses = ['new', 'in_progress', 'ready', 'completed'] %}
+                    {% for status in statuses %}
+                        <div class="flex flex-col items-center {% if not loop.first %}flex-1{% endif %}">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center 
+                                {% if statuses.index(order.status) >= statuses.index(status) %}bg-black text-white
+                                {% else %}bg-gray-200 text-gray-600{% endif %}">
+                                {{ loop.index }}
+                            </div>
+                            <span class="mt-2 text-xs text-center capitalize">{{ status|replace('_', ' ') }}</span>
+                        </div>
+                        
+                        {% if not loop.last %}
+                            <div class="flex-1 h-1 mx-2 
+                                {% if statuses.index(order.status) > statuses.index(status) %}bg-black
+                                {% else %}bg-gray-200{% endif %}"></div>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Delay Notice (if applicable) -->
+        {% if order.delayed %}
+        {% set delay = order.delay_minutes %}
+        {% if delay <= 5 %}
+            {% set bg_color = "bg-yellow-50" %}
+            {% set text_color = "text-yellow-800" %}
+            {% set icon_color = "text-yellow-600" %}
+        {% elif delay <= 10 %}
+            {% set bg_color = "bg-orange-50" %}
+            {% set text_color = "text-orange-800" %}
+            {% set icon_color = "text-orange-600" %}
+        {% else %}
+            {% set bg_color = "bg-red-50" %}
+            {% set text_color = "text-red-800" %}
+            {% set icon_color = "text-red-600" %}
+        {% endif %}
+    
+        <div class="p-4 border-b {{ bg_color }}">
+            <div class="flex items-start">
+                <div class="flex-shrink-0 mt-0.5">
+                    <svg class="h-5 w-5 {{ icon_color }}" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                    </svg>
+                </div>
+                <div class="ml-3">
+                    <h3 class="text-lg font-medium {{ text_color }}">Verzögerung bei Ihrer Bestellung</h3>
+                    <div class="mt-2 {{ text_color }}">
+                        {% if order.delay_minutes == 2 %}
+                            <p class="text-base">Ihre Bestellung verspätet sich um ca. 2-5 Minuten. Wir arbeiten daran, sie so schnell wie möglich fertigzustellen.</p>
+                        {% elif order.delay_minutes == 5 %}
+                            <p class="text-base">Es gibt eine kleine Verzögerung bei Ihrer Bestellung. Die voraussichtliche Wartezeit beträgt etwa 5-10 Minuten.</p>
+                        {% elif order.delay_minutes == 10 %}
+                            <p class="text-base">Aufgrund erhöhten Bestellaufkommens verzögert sich Ihre Bestellung um etwa 10-20 Minuten. Wir bitten um Ihr Verständnis.</p>
+                        {% elif order.delay_minutes == 20 %}
+                            <p class="text-base">Wir entschuldigen uns für die Unannehmlichkeit, aber Ihre Bestellung wird sich um mehr 20 Minuten verzögern. Bitte planen Sie entsprechend.</p>
+                        {% else %}
+                            <p class="text-base">Ihre Bestellung verzögert sich voraussichtlich um {{ order.delay_minutes }} Minuten. Wir bitten um Ihr Verständnis.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Order Details -->
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-medium mb-3">Bestelldetails</h2>
+            <p class="text-gray-500">Aufgegeben am: {{ order.created|datetimeformat if order.created else order.pickup_date }}</p>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3">
+                <div>
+                    <h3 class="font-medium text-gray-700">Abholdaten</h3>
+                    <p class="text-gray-500">{{ order.pickup_date }} um {{ order.pickup_time }} Uhr</p>
+                </div>
+                <div>
+                    <h3 class="font-medium text-gray-700">Kunde</h3>
+                    <p class="text-gray-500">{{ order.customer_name }} ({{ order.customer_email }})</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Order Items -->
+        <div class="p-4 border-b">
+            <h2 class="text-lg font-medium mb-4">Bestellte Artikel</h2>
+            
+            <div class="space-y-4" id="order-items">
+                {% for item in items %}
+                    <div class="border rounded-lg p-4 bg-gray-50 hover:shadow-sm transition {% if loop.index > 3 %}hidden extra-item{% endif %}">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-semibold text-gray-800 text-lg">
+                                    {{ item.product_name }} × {{ item.quantity }}
+                                </h3>
+                                {% if item_refinements[item.id] %}
+                                    <ul class="mt-2 space-y-1 text-sm text-gray-600">
+                                        {% for refinement in item_refinements[item.id] %}
+                                            <li class="flex items-center gap-2">
+                                                <svg class="h-4 w-4 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fill-rule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clip-rule="evenodd" />
+                                                </svg>
+                                                {{ refinement.name }}
+                                            </li>
+                                        {% endfor %}
+                                    </ul>
+                                {% endif %}
+                            </div>
+                            <span class="font-semibold text-gray-700 whitespace-nowrap">
+                                €{{ "%.2f"|format(item.quantity * item.price) }}
+                            </span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+            
+            {% if items|length > 3 %}
+            <div class="mt-3 text-center">
+                <button id="toggleItemsBtn"
+                    class="text-blue-600 hover:underline font-medium focus:outline-none transition">
+                    Weitere Artikel anzeigen
+                </button>
+            </div>
+            
+            <script>
+                document.addEventListener("DOMContentLoaded", function () {
+                    const toggleBtn = document.getElementById("toggleItemsBtn");
+                    const extraItems = document.querySelectorAll(".extra-item");
+                    let expanded = false;
+            
+                    toggleBtn.addEventListener("click", () => {
+                        expanded = !expanded;
+                        extraItems.forEach(el => {
+                            el.style.display = expanded ? "block" : "none";
+                        });
+                        toggleBtn.textContent = expanded ? "Weniger anzeigen" : "Weitere Artikel anzeigen";
+                    });
+                });
+            </script>
+            
+            {% endif %}
+            <div class="mt-4 pt-3 border-t">
+                <div class="flex justify-between font-medium text-lg">
+                    <span>Gesamtbetrag:</span>
+                    <span>€{{ "%.2f"|format(order.total_amount) }}</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Actions -->
+        <div class="p-4 bg-gray-50">
+            <div class="flex justify-end">
+                <a href="{{ url_for('index') }}" 
+                   class="bg-black hover:bg-gray-800 px-4 py-2 text-white font-medium transition duration-200">
+                    Zurück zum Shop
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript for pickup countdown -->
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    // Parse pickup date and time from template variables
+    const pickupDate = "{{ order.pickup_date }}"; // Format: YYYY-MM-DD
+    const pickupTime = "{{ order.pickup_time }}"; // Format: HH:MM
+    
+    // Create a Date object for the pickup time
+    const [hours, minutes] = pickupTime.split(':');
+    const [year, month, day] = pickupDate.split('-');
+    
+    // Month is 0-indexed in JavaScript Date
+    const pickupDateTime = new Date(year, month - 1, day, hours, minutes);
+    
+    // Check if pickup is within 15 minutes
+    function updateCountdown() {
+      const now = new Date();
+      const timeDiff = pickupDateTime - now; // time difference in milliseconds
+      const minutesUntilPickup = Math.floor(timeDiff / (1000 * 60));
+      
+      // If pickup is within 15 minutes (and in the future), show the notification
+      if (minutesUntilPickup <= 15 && minutesUntilPickup > 0) {
+        document.getElementById('pickupNotification').classList.remove('hidden');
+        
+        // Calculate remaining time
+        const minutes = Math.floor(timeDiff / (1000 * 60));
+        const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+        
+        // Update countdown display
+        document.getElementById('countdownDisplay').textContent = 
+          `${minutes}:${seconds < 10 ? '0' : ''}${seconds} Minuten`;
+      } else if (minutesUntilPickup <= 0 && minutesUntilPickup > -30) {
+        // If pickup time has passed but within 30 minutes (still relevant)
+        document.getElementById('pickupNotification').classList.remove('hidden');
+        document.getElementById('countdownDisplay').textContent = "0:00 Minuten - Jetzt abholen!";
+      } else {
+        document.getElementById('pickupNotification').classList.add('hidden');
+      }
+    }
+    
+    // Update immediately and then every second
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+  });
+</script>
+{% endblock %}

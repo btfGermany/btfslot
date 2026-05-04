@@ -1,0 +1,127 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Zeitfenster Verwaltung{% endblock %}
+{% block header %}Zeitfenster Verwaltung{% endblock %}
+
+{% block content %}
+<div class="container mx-auto">
+    <div class="flex flex-wrap items-center justify-between mb-8 border-b pb-5">
+        <h1 class="text-3xl font-light text-gray-800">Zeitfenster Verwaltung</h1>
+    </div>
+
+    <!-- Zeitfenster Regeln Bereich -->
+    <div class="mb-8">
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-medium text-gray-700">Zeitfenster Regeln</h2>
+            <a href="{{ url_for('add_time_rule') }}" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-150">Neue Regel hinzufügen</a>
+        </div>
+        <div class="bg-white border border-gray-200 rounded overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Zeitraum</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Intervall</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kapazität</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Aktionen</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for rule in time_rules %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ rule.name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ rule.start_time }} - {{ rule.end_time }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ rule.interval_minutes }} Minuten</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ rule.capacity }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                {% if rule.active %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">Aktiv</span>
+                                {% else %}
+                                <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-gray-100 text-gray-800">Inaktiv</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                <div class="flex space-x-2">
+                                    <a href="{{ url_for('edit_time_rule', rule_id=rule.id) }}" class="text-blue-600 hover:text-blue-900">Bearbeiten</a>
+                                    <form class="inline" method="POST" action="{{ url_for('delete_time_rule', rule_id=rule.id) }}" onsubmit="return confirm('Sind Sie sicher, dass Sie diese Regel löschen möchten?');">
+                                        <button type="submit" class="text-red-600 hover:text-red-900">Löschen</button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Zeitfenster generieren Bereich -->
+    <div class="mb-8">
+        <h2 class="text-xl font-medium text-gray-700 mb-4">Zeitfenster generieren</h2>
+        <div class="bg-white border border-gray-200 rounded p-6">
+            <form method="POST" action="{{ url_for('generate_time_slots') }}">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                        <label for="date" class="block text-sm font-medium text-gray-700 mb-1">Datum</label>
+                        <input type="date" id="date" name="date" class="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:border-blue-500" required>
+                    </div>
+                    <div>
+                        <label for="rule_id" class="block text-sm font-medium text-gray-700 mb-1">Regel</label>
+                        <select id="rule_id" name="rule_id" class="w-full py-2 px-3 border border-gray-300 rounded focus:outline-none focus:border-blue-500" required>
+                            {% for rule in time_rules %}
+                            <option value="{{ rule.id }}">{{ rule.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="flex items-end">
+                        <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded transition duration-150">Zeitfenster generieren</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Aktuelle Zeitfenster Bereich -->
+    <div>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-xl font-medium text-gray-700">Zeitfenster für {{ current_date }}</h2>
+        </div>
+        <div class="bg-white border border-gray-200 rounded overflow-hidden">
+            {% if slots %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Zeit</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Kapazität</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Genutzt</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Verfügbar</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% for slot in slots %}
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ slot.start_time }} - {{ slot.end_time }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ slot.capacity }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ slot.used_capacity }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap">{{ slot.capacity - slot.used_capacity }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200">
+                <form method="POST" action="{{ url_for('delete_date_slots', date=current_date) }}" onsubmit="return confirm('Sind Sie sicher, dass Sie alle Zeitfenster für dieses Datum löschen möchten?');">
+                    <button type="submit" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded transition duration-150">Alle Zeitfenster für heute löschen</button>
+                </form>
+            </div>
+            {% else %}
+            <div class="p-6 text-gray-500">Keine Zeitfenster für heute verfügbar.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

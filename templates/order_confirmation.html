@@ -1,0 +1,51 @@
+{% extends "base_email.html" %}
+
+{% block title %}Bestätigung Ihrer Bestellung{% endblock %}
+
+{% block content %}
+<h1>Vielen Dank für Ihre Bestellung!</h1>
+
+<p>Sehr geehrte(r) Kunde/Kundin,</p>
+
+<p>Ihre Bestellung #{{ order_number }} wurde erfolgreich aufgegeben und wird jetzt bearbeitet.</p>
+
+<div class="summary">
+    <p><strong>Bestellnummer:</strong> #{{ order_number }}</p>
+    {% if order_details %}
+    <h2>Bestellte Artikel:</h2>
+    {% for item in order_details.items %}
+    <div style="display: flex; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #e2e2e2;">
+        <div style="flex: 1;">
+            <p><strong>{{ item.product.name }}</strong></p>
+            <p style="color: #666;">{{ item.product.description }}</p>
+            {% if item.refinements %}
+            <div style="font-size: 14px; color: #666;">
+                {% for refinement in item.refinements %}
+                <div>{{ refinement.step_name }}: {{ refinement.name }}</div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        <div style="text-align: right;">
+            <p><strong>€{{ "%.2f"|format(item.total_price) }}</strong></p>
+        </div>
+    </div>
+    {% endfor %}
+    <div style="display: flex; justify-content: space-between; margin-top: 16px;">
+        <strong>Gesamtsumme:</strong>
+        <strong>€{{ "%.2f"|format(order_details.total_price) }}</strong>
+    </div>
+    {% endif %}
+</div>
+
+<p>Sie können den Status Ihrer Bestellung jederzeit in Ihrem Kundenkonto überprüfen.</p>
+
+<p style="text-align: center;">
+    <a href="{{ server_url }}/track/{{ order_number }}" class="btn">Bestellung verfolgen</a>
+</p>
+
+<p>Bei Fragen zu Ihrer Bestellung kontaktieren Sie bitte unseren Kundenservice.</p>
+
+<p>Mit freundlichen Grüßen,<br>
+Ihr Shop-Team</p>
+{% endblock %}

@@ -1,0 +1,438 @@
+<!-- templates/shop/checkout.html -->
+{% extends "shop/base.html" %}
+
+{% block content %}
+<style>
+  /* Fullscreen Loader Styles */
+  .fullscreen-loader {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(255, 255, 255, 0.9);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+    flex-direction: column;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s, visibility 0.3s;
+  }
+  
+  .fullscreen-loader.active {
+    opacity: 1;
+    visibility: visible;
+  }
+  
+  .loader {
+    width: 120px;
+    height: 20px;
+    background: linear-gradient(#000 50%,#0000 0),
+    linear-gradient(#0000 50%,#000 0),
+    linear-gradient(#000 50%,#0000 0),
+    linear-gradient(#0000 50%,#000 0),
+    linear-gradient(#000 50%,#0000 0),
+    linear-gradient(#0000 50%,#000 0)
+     #ddd;
+    background-size: calc(100%/6 + 1px) 200%;
+    background-repeat: no-repeat;
+    animation: l12 2s infinite;
+  }
+  
+  .loader-text {
+    margin-top: 20px;
+    font-weight: 500;
+  }
+  
+  @keyframes l12 {
+    0% {
+      background-position: calc(0*100%/5) 100%,calc(1*100%/5) 0%,calc(2*100%/5) 100%,calc(3*100%/5) 0%,calc(4*100%/5) 100%,calc(5*100%/5) 0%
+    }
+    16.67% {
+      background-position: calc(0*100%/5) 0%,calc(1*100%/5) 0%,calc(2*100%/5) 100%,calc(3*100%/5) 0%,calc(4*100%/5) 100%,calc(5*100%/5) 0%
+    }
+    33.33% {
+      background-position: calc(0*100%/5) 0%,calc(1*100%/5) 100%,calc(2*100%/5) 100%,calc(3*100%/5) 0%,calc(4*100%/5) 100%,calc(5*100%/5) 0%
+    }
+    50% {
+      background-position: calc(0*100%/5) 0%,calc(1*100%/5) 100%,calc(2*100%/5) 0%,calc(3*100%/5) 0%,calc(4*100%/5) 100%,calc(5*100%/5) 0%
+    }
+    66.67% {
+      background-position: calc(0*100%/5) 0%,calc(1*100%/5) 100%,calc(2*100%/5) 0%,calc(3*100%/5) 100%,calc(4*100%/5) 100%,calc(5*100%/5) 0%
+    }
+    83.33% {
+      background-position: calc(0*100%/5) 0%,calc(1*100%/5) 100%,calc(2*100%/5) 0%,calc(3*100%/5) 100%,calc(4*100%/5) 0%,calc(5*100%/5) 0%
+    }
+    100% {
+      background-position: calc(0*100%/5) 0%,calc(1*100%/5) 100%,calc(2*100%/5) 0%,calc(3*100%/5) 100%,calc(4*100%/5) 0%,calc(5*100%/5) 100%
+    }
+  }
+</style>
+
+<!-- Fullscreen Loader -->
+<div id="fullscreen-loader" class="fullscreen-loader">
+  <div class="loader"></div>
+  <div class="loader-text">Ihre Bestellung wird bearbeitet...</div>
+</div>
+
+<div class="container mx-auto px-4 py-6">
+    <h1 class="text-2xl font-medium mb-4">Kasse</h1>
+    
+    <!-- Fehlermeldung bei Verfügbarkeitsproblemen -->
+    {% if error %}
+    <div class="bg-red-50 border border-red-200 text-red-700 p-4 mb-6">
+        <h3 class="font-medium">{{ error }}</h3>
+        {% if unavailable_items %}
+        <ul class="mt-2 list-disc list-inside text-sm">
+            {% for item in unavailable_items %}
+            <li>
+                <strong>{{ item.name }}</strong>: Angefordert: {{ item.requested }}, Verfügbar: {{ item.available }}
+            </li>
+            {% endfor %}
+        </ul>
+        <div class="mt-3">
+            <a href="{{ url_for('cart') }}" class="text-sm underline">Zurück zum Warenkorb</a>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Bestellübersicht -->
+        <div class="bg-white p-4 border border-gray-200">
+            <h2 class="text-lg font-medium mb-3 border-b pb-2">Ihre Bestellung</h2>
+            
+            {% if cart_items %}
+                <div class="space-y-3">
+                    {% for item in cart_items %}
+                        <div class="border-b pb-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h3 class="font-medium">{{ item.product.name }} × {{ item.quantity }}</h3>
+                                    {% if item.refinements %}
+                                        <ul class="mt-1 text-sm text-gray-600">
+                                            {% for refinement in item.refinements %}
+                                                <li>{{ refinement.step_name }}: {{ refinement.name }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    {% endif %}
+                                </div>
+                                <span class="font-medium">€{{ "%.2f"|format(item.total_price) }}</span>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                
+                <div class="mt-4 border-t pt-3">
+                    <div class="flex justify-between font-medium text-lg">
+                        <span>Gesamtbetrag:</span>
+                        <span>€{{ "%.2f"|format(total_price) }}</span>
+                    </div>
+                </div>
+            {% else %}
+                <p class="text-gray-500">Ihr Warenkorb ist leer</p>
+            {% endif %}
+        </div>
+        
+        <!-- Bestellformular -->
+        <div class="bg-white p-4 border border-gray-200">
+            <h2 class="text-lg font-medium mb-3 border-b pb-2">Abholdaten</h2>
+            
+            <div id="loading-state" class="py-4">
+                <div class="flex flex-row gap-2 mb-4"> 
+                    <div class="animate-pulse bg-gray-300 w-14 h-14 rounded-sm"></div> 
+                    <div class="flex flex-col gap-2"> 
+                        <div class="animate-pulse bg-gray-300 w-28 h-5 rounded-sm"></div> 
+                        <div class="animate-pulse bg-gray-300 w-36 h-3 rounded-sm"></div> 
+                        <div class="animate-pulse bg-gray-300 w-36 h-2 rounded-sm"></div> 
+                    </div>
+                </div>
+                <div class="flex flex-row gap-2"> 
+                    <div class="animate-pulse bg-gray-300 w-14 h-14 rounded-sm"></div> 
+                    <div class="flex flex-col gap-2"> 
+                        <div class="animate-pulse bg-gray-300 w-28 h-5 rounded-sm"></div> 
+                        <div class="animate-pulse bg-gray-300 w-36 h-3 rounded-sm"></div> 
+                        <div class="animate-pulse bg-gray-300 w-36 h-2 rounded-sm"></div> 
+                    </div>
+                </div>
+            </div>
+            
+            <form method="POST" action="{{ url_for('checkout') }}" class="space-y-4 hidden" id="checkout-form">
+                <!-- Verstecktes Feld für das Abholdatum und -zeit -->
+                <input type="hidden" id="pickup_date_input" name="pickup_date" required>
+                <input type="hidden" id="pickup_time_input" name="pickup_time" required>
+                
+                <!-- Kundeninformation -->
+                <div>
+                    <label for="customer_name" class="block text-sm mb-1">Vollständiger Name*</label>
+                    <input type="text" id="customer_name" name="customer_name" required
+                           class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-black">
+                </div>
+                
+                <!-- E-Mail Adresse -->
+                <div>
+                    <label for="customer_email" class="block text-sm mb-1">E-Mail Adresse*</label>
+                    <input type="email" id="customer_email" name="customer_email" required
+                           class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-black">
+                </div>
+                
+                <!-- Abholdatum Auswahl -->
+                <div>
+                    <label class="block text-sm mb-1">Abholdatum*</label>
+                    <div id="date-selection" class="grid grid-cols-3 gap-2">
+                        <!-- Daten werden per JavaScript eingefügt -->
+                    </div>
+                    <p id="date-error" class="text-red-500 text-sm mt-1 hidden">Bitte wählen Sie ein Abholdatum aus</p>
+                </div>
+                
+                <!-- Abholzeit Auswahl -->
+                <div>
+                    <label class="block text-sm mb-1">Abholzeit*</label>
+                    <div id="time-slots-container" class="mt-2">
+                        <div id="time-slots" class="grid grid-cols-3 gap-2">
+                            <!-- Zeit-Kärtchen werden hier eingefügt -->
+                        </div>
+                        <div id="no-slots-message" class="text-gray-500 mt-2 hidden">
+                            Für diesen Tag sind leider keine Abholzeiten verfügbar.
+                        </div>
+                        <button type="button" id="show-more-slots" class="text-gray-600 underline mt-2 text-sm hidden">
+                            Alle Zeiten anzeigen
+                        </button>
+                    </div>
+                    <p id="time-error" class="text-red-500 text-sm mt-1 hidden">Bitte wählen Sie eine Abholzeit aus</p>
+                </div>
+                
+                <!-- Bestellbutton -->
+                <button type="submit" id="submit-order-button"
+                        class="w-full bg-black hover:bg-gray-800 text-white font-medium py-2 px-4 transition duration-200">
+                    Bestellung aufgeben
+                </button>
+            </form>
+            
+            <!-- Hinweis wenn keine Slots verfügbar -->
+            <div id="no-available-days" class="text-center py-8 hidden">
+                <div class="flex justify-center mb-4">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-gray-400">
+                        <rect width="18" height="18" x="3" y="4" rx="2" ry="2"></rect>
+                        <line x1="16" x2="16" y1="2" y2="6"></line>
+                        <line x1="8" x2="8" y1="2" y2="6"></line>
+                        <line x1="3" x2="21" y1="10" y2="10"></line>
+                        <path d="M8 14h.01"></path>
+                        <path d="M12 14h.01"></path>
+                        <path d="M16 14h.01"></path>
+                        <path d="M8 18h.01"></path>
+                        <path d="M12 18h.01"></path>
+                        <path d="M16 18h.01"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-medium mb-2">Keine Abholzeiten verfügbar</h3>
+                <p class="text-gray-500">Leider stehen derzeit keine Abholzeiten zur Verfügung. Bitte versuchen Sie es später erneut.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Get form and loader elements
+        const form = document.getElementById('checkout-form');
+        const submitButton = document.getElementById('submit-order-button');
+        const fullscreenLoader = document.getElementById('fullscreen-loader');
+        
+        // Add submit event listener to show loader and submit form
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                // Check form validity first
+                if (form.checkValidity()) {
+                    // Show the loader
+                    fullscreenLoader.classList.add('active');
+                    
+                    // Let the form submit normally - no need to prevent default
+                    // The loader will stay visible during the form submission and page transition
+                }
+            });
+        }
+    });
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('checkout-form');
+        const loadingState = document.getElementById('loading-state');
+        const pickupDateInput = document.getElementById('pickup_date_input');
+        const pickupTimeInput = document.getElementById('pickup_time_input');
+        const timeSlots = document.getElementById('time-slots');
+        const noSlotsMessage = document.getElementById('no-slots-message');
+        const showMoreSlotsBtn = document.getElementById('show-more-slots');
+        const dateError = document.getElementById('date-error');
+        const timeError = document.getElementById('time-error');
+        const noAvailableDays = document.getElementById('no-available-days');
+        
+        let allTimeSlots = [];
+        let selectedDate = null;
+        let refreshInterval;
+        
+        // Initial loading
+        loadAvailableSlots();
+        
+        // Set up auto-refresh every 30 seconds
+        refreshInterval = setInterval(loadAvailableSlots, 30000);
+        
+        function loadAvailableSlots() {
+            // Show loading state
+            loadingState.classList.remove('hidden');
+            form.classList.add('hidden');
+            noAvailableDays.classList.add('hidden');
+            
+            fetch("{{ url_for('available_slots') }}", {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            })
+            .then(response => response.json())
+            .then(data => {
+                // Hide loading state
+                loadingState.classList.add('hidden');
+                
+                // Check if there are any available days
+                if (data.length === 0) {
+                    // Show "no days available" message
+                    noAvailableDays.classList.remove('hidden');
+                    form.classList.add('hidden');
+                    return;
+                }
+                
+                // Show form since we have dates
+                form.classList.remove('hidden');
+                
+                const dateSelection = document.getElementById('date-selection');
+                dateSelection.innerHTML = ''; // Clear existing dates
+                
+                // Create date buttons
+                data.forEach(day => {
+                    const date = new Date(day.date);
+                    const dateBtn = document.createElement('button');
+                    dateBtn.type = 'button';
+                    dateBtn.className = 'py-2 px-2 border border-gray-300 text-sm font-medium';
+                    dateBtn.innerHTML = `
+                        ${date.toLocaleDateString('de-DE', { weekday: 'short' })}<br>
+                        ${date.getDate()}.${date.getMonth()+1}.
+                    `;
+        
+                    dateBtn.addEventListener('click', function() {
+                        // Mark active date
+                        document.querySelectorAll('#date-selection button').forEach(btn => {
+                            btn.classList.remove('bg-black', 'text-white');
+                        });
+                        this.classList.add('bg-black', 'text-white');
+                        
+                        // Set pickup date
+                        pickupDateInput.value = day.date;
+                        selectedDate = day.date;
+                        dateError.classList.add('hidden');
+                        
+                        // Reset time selection
+                        pickupTimeInput.value = '';
+                        
+                        // Update time slots
+                        displayTimeSlots(day.pickup_times);
+                    });
+        
+                    dateSelection.appendChild(dateBtn);
+                    
+                    // Auto-select today if available
+                    if (day.date === new Date().toISOString().split('T')[0]) {
+                        dateBtn.click();
+                    }
+                });
+                
+                // Select first date if no today available
+                if (!selectedDate && data.length > 0) {
+                    dateSelection.firstChild.click();
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                loadingState.classList.add('hidden');
+                form.classList.remove('hidden');
+            });
+        }
+        
+        // Function to display time slots
+        function displayTimeSlots(slots) {
+            timeSlots.innerHTML = '';
+            allTimeSlots = slots;
+            
+            if (slots.length === 0) {
+                // Show message if no slots available
+                noSlotsMessage.classList.remove('hidden');
+                showMoreSlotsBtn.classList.add('hidden');
+                return;
+            }
+            
+            noSlotsMessage.classList.add('hidden');
+            
+            // Display first 6 slots (3 rows of 2)
+            const visibleSlots = slots.slice(0, 6);
+            visibleSlots.forEach(time => {
+                createTimeSlot(time);
+            });
+            
+            // Show/hide "show more" button
+            if (slots.length > 6) {
+                showMoreSlotsBtn.classList.remove('hidden');
+            } else {
+                showMoreSlotsBtn.classList.add('hidden');
+            }
+        }
+        
+        // Create a single time slot card
+        function createTimeSlot(time) {
+            const slot = document.createElement('button');
+            slot.type = 'button';
+            slot.className = 'py-2 px-2 border border-gray-300 text-center focus:outline-none';
+            slot.textContent = `${time} Uhr`;
+            
+            slot.addEventListener('click', function() {
+                // Mark active time slot
+                document.querySelectorAll('#time-slots button').forEach(btn => {
+                    btn.classList.remove('bg-black', 'text-white');
+                    btn.classList.add('text-gray-800');
+                });
+                this.classList.add('bg-black', 'text-white');
+                this.classList.remove('text-gray-800');
+                
+                // Set pickup time
+                pickupTimeInput.value = time;
+                timeError.classList.add('hidden');
+            });
+            
+            timeSlots.appendChild(slot);
+        }
+        
+        // Show all time slots when clicking the "show more" button
+        showMoreSlotsBtn.addEventListener('click', function() {
+            timeSlots.innerHTML = '';
+            allTimeSlots.forEach(time => {
+                createTimeSlot(time);
+            });
+            this.classList.add('hidden');
+        });
+    
+        // Form validation
+        form.addEventListener('submit', function(e) {
+            if (!pickupDateInput.value || !pickupTimeInput.value) {
+                e.preventDefault();
+                if (!pickupDateInput.value) dateError.classList.remove('hidden');
+                if (!pickupTimeInput.value) timeError.classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+        });
+        
+        // Clean up interval when navigating away
+        window.addEventListener('beforeunload', function() {
+            clearInterval(refreshInterval);
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,113 @@
+{% extends 'admin/base.html' %}
+
+{% block title %}Zeitregel bearbeiten{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- Header mit verbessertem Design -->
+    <div class="flex flex-wrap items-center justify-between mb-8 border-b border-indigo-100 pb-5">
+        <div class="flex items-center space-x-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+            </svg>
+            <h1 class="text-3xl font-light text-gray-800">Zeitregel bearbeiten</h1>
+        </div>
+        <a href="{{ url_for('manage_time_slots') }}" class="flex items-center bg-gray-50 hover:bg-gray-100 text-gray-700 px-4 py-2 rounded transition duration-150 border border-gray-200">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
+            </svg>
+            Zurück
+        </a>
+    </div>
+
+    <!-- Formular mit verbessertem Design -->
+    <div class="bg-white border border-gray-200 rounded overflow-hidden">
+        <form method="POST" action="{{ url_for('edit_time_rule', rule_id=rule.id) }}" class="p-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Linke Spalte -->
+                <div class="space-y-6">
+                    <div>
+                        <label for="name" class="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 2a1 1 0 00-1 1v1a1 1 0 002 0V3a1 1 0 00-1-1zM4 4h3a3 3 0 006 0h3a2 2 0 012 2v9a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2zm2.5 7a1.5 1.5 0 100-3 1.5 1.5 0 000 3zm2.45 4a2.5 2.5 0 10-4.9 0h4.9zM12 9a1 1 0 100 2h3a1 1 0 100-2h-3zm-1 4a1 1 0 011-1h2a1 1 0 110 2h-2a1 1 0 01-1-1z" clip-rule="evenodd" />
+                            </svg>
+                            Name
+                        </label>
+                        <input type="text" id="name" name="name" value="{{ rule.name }}" required class="block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+
+                    <div>
+                        <label for="start_time" class="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                            </svg>
+                            Startzeit
+                        </label>
+                        <input type="time" id="start_time" name="start_time" value="{{ rule.start_time }}" required class="block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+
+                    <div>
+                        <label for="interval_minutes" class="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z" clip-rule="evenodd" />
+                            </svg>
+                            Intervall (Minuten)
+                        </label>
+                        <input type="number" id="interval_minutes" name="interval_minutes" min="5" step="5" value="{{ rule.interval_minutes }}" required class="block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+                </div>
+
+                <!-- Rechte Spalte -->
+                <div class="space-y-6">
+                    <div>
+                        <label for="end_time" class="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd" />
+                            </svg>
+                            Endzeit
+                        </label>
+                        <input type="time" id="end_time" name="end_time" value="{{ rule.end_time }}" required class="block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+
+                    <div>
+                        <label for="capacity" class="block text-sm font-medium text-gray-700 mb-1 flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 1.944C11.736 1.648 13.5 1.5 15 1.5c.171 0 .338.019.5.053V5h1a1 1 0 110 2h-1v5a7 7 0 11-14 0V7H1a1 1 0 010-2h1V1.053c.162-.034.329-.053.5-.053 1.5 0 3.264.148 5 .444zm-2 11.056a1 1 0 11-2 0 1 1 0 012 0zm3 0a1 1 0 11-2 0 1 1 0 012 0zm3 0a1 1 0 11-2 0 1 1 0 012 0z" clip-rule="evenodd" />
+                            </svg>
+                            Kapazität pro Zeitfenster
+                        </label>
+                        <input type="number" id="capacity" name="capacity" min="1" value="{{ rule.capacity }}" required class="block w-full rounded-md border-gray-300 focus:border-indigo-500 focus:ring-indigo-500">
+                    </div>
+
+                    <div class="flex items-center mt-2">
+                        <div class="flex items-center h-5">
+                            <input type="checkbox" name="active" id="active" class="h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" {{ 'checked' if rule.active else '' }}>
+                        </div>
+                        <label for="active" class="ml-3 text-sm text-gray-700 font-medium flex items-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2 text-indigo-500" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                            </svg>
+                            Aktiv
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 flex justify-end gap-3">
+                <a href="{{ url_for('manage_time_slots') }}" class="flex items-center bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-md text-gray-700 transition border border-gray-200">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                    </svg>
+                    Abbrechen
+                </a>
+                <button type="submit" class="flex items-center bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-md text-white transition">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" viewBox="0 0 20 20" fill="currentColor">
+                        <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                    </svg>
+                    Regel aktualisieren
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

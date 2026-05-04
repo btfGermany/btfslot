@@ -1,0 +1,181 @@
+{% extends "/terminal/base.html" %}
+{% block title %}Ausgehende Bestellungen{% endblock %}
+{% block content %}
+<div class="bg-white rounded-lg p-6">
+  <!-- Große Suchleiste für Bestellnummern -->
+  <div class="mb-6 bg-gray-100 p-4 rounded-lg">
+    <div class="flex items-center mb-3">
+      <h2 class="text-xl font-bold">Bestellung suchen</h2>
+    </div>
+    <div class="relative">
+      <input type="text" id="orderSearchInput" class="w-full p-4 text-2xl font-bold bg-white border-2 border-gray-300 rounded-lg" placeholder="Bestellnummer eingeben..." readonly>
+      <button id="clearSearch" class="absolute right-3 top-4 bg-gray-200 hover:bg-gray-300 p-2 rounded-full">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+    
+    <!-- Eigene Zahlentastatur -->
+    <div class="mt-4 grid grid-cols-3 gap-2">
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">1</button>
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">2</button>
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">3</button>
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">4</button>
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">5</button>
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">6</button>
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">7</button>
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">8</button>
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">9</button>
+      <button class="numpad-btn bg-white hover:bg-gray-100 text-2xl font-bold py-4 rounded-lg border border-gray-300">0</button>
+      <button id="backspace" class="bg-white hover:bg-gray-100 text-xl py-4 col-span-2 rounded-lg border border-gray-300">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 mx-auto text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
+        </svg>
+      </button>
+    </div>
+  </div>
+
+  <h1 class="text-2xl font-bold mb-6">Abholbereite Bestellungen</h1>
+  {% if not orders %}
+  <p class="text-gray-500">Momentan keine abholbereiten Bestellungen vorhanden.</p>
+  {% else %}
+  <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6" id="ordersContainer">
+    {% for order in orders %}
+    <div class="border rounded-lg p-4 bg-green-50 order-card" data-order-number="{{ order['order_number'] }}">
+      <div class="flex justify-between items-center mb-3">
+        <h2 class="text-lg font-semibold">#{{ order['order_number'] }} - {{ order['customer_name'] }}</h2>
+        <span class="px-2 py-1 text-xs rounded-full bg-green-100 text-green-800">
+          Bereit
+        </span>
+      </div>
+      <div class="mb-3">
+        <p class="text-sm text-gray-600">
+          <span class="font-medium">Abholung:</span>
+          {{ order['pickup_date'] }} um {{ order['pickup_time'] }}
+        </p>
+        <p class="text-sm text-gray-600">
+          <span class="font-medium">Telefon:</span>
+          {{ order['phone_number'] }}
+        </p>
+        {% if order['notes'] %}
+        <p class="text-sm text-gray-600 mt-2">
+          <span class="font-medium">Anmerkungen:</span>
+          {{ order['notes'] }}
+        </p>
+        {% endif %}
+      </div>
+      <div class="border-t pt-3">
+        <h3 class="font-medium mb-2">Bestellte Artikel:</h3>
+        <ul class="space-y-2">
+          {% for item in order_items[order['id']]['items'] %}
+          <li class="pl-2 border-l-2 border-green-400">
+            <div class="font-medium">{{ item['quantity'] }}x {{ item['product_name'] }}</div>
+            {% if order_items[order['id']]['refinements'][item['id']] %}
+            <div class="text-sm text-gray-600 pl-3 mt-1">
+              {% for refinement in order_items[order['id']]['refinements'][item['id']] %}
+              <span class="inline-block bg-gray-200 rounded px-2 py-1 text-xs mr-1 mb-1">
+                {{ refinement['name'] }}
+              </span>
+              {% endfor %}
+            </div>
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      <div class="mt-4">
+        <form action="{{ url_for('mark_order_completed', order_id=order['id']) }}" method="post">
+          <button type="submit" class="bg-green-500 hover:bg-green-600 text-white py-3 px-4 rounded font-medium text-lg w-full">
+            Bestellung abgeholt
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const searchInput = document.getElementById('orderSearchInput');
+    const clearSearchBtn = document.getElementById('clearSearch');
+    const backspaceBtn = document.getElementById('backspace');
+    const numpadButtons = document.querySelectorAll('.numpad-btn');
+    const orderCards = document.querySelectorAll('.order-card');
+    const ordersContainer = document.getElementById('ordersContainer');
+    
+    // Live-Suche Funktion
+    function performSearch() {
+      const searchTerm = searchInput.value.trim();
+      if (searchTerm === '') {
+        showAllOrders();
+        return;
+      }
+      
+      let foundCount = 0;
+      orderCards.forEach(card => {
+        const orderNumber = card.dataset.orderNumber;
+        if (orderNumber.includes(searchTerm)) {
+          card.style.display = 'block';
+          foundCount++;
+        } else {
+          card.style.display = 'none';
+        }
+      });
+      
+      if (foundCount === 0 && searchTerm !== '') {
+        // Zeige eine Benachrichtigung, wenn keine Bestellung gefunden wurde
+        showNotification(`Keine Bestellung mit Nummer ${searchTerm} gefunden.`, 'bg-red-100 text-red-700');
+      }
+    }
+    
+    // Numpad button click
+    numpadButtons.forEach(button => {
+      button.addEventListener('click', function() {
+        searchInput.value += this.textContent;
+        performSearch(); // Live-Suche sofort ausführen
+      });
+    });
+    
+    // Backspace button click
+    backspaceBtn.addEventListener('click', function() {
+      searchInput.value = searchInput.value.slice(0, -1);
+      performSearch(); // Live-Suche sofort ausführen
+    });
+    
+    // Clear search button click
+    clearSearchBtn.addEventListener('click', function() {
+      searchInput.value = '';
+      showAllOrders();
+    });
+    
+    function showAllOrders() {
+      orderCards.forEach(card => {
+        card.style.display = 'block';
+      });
+      // Entferne jegliche Benachrichtigungen
+      const notifications = document.querySelectorAll('.search-notification');
+      notifications.forEach(notification => notification.remove());
+    }
+    
+    function showNotification(message, classes) {
+      // Entferne vorherige Benachrichtigungen
+      const oldNotifications = document.querySelectorAll('.search-notification');
+      oldNotifications.forEach(notification => notification.remove());
+      
+      // Erstelle neue Benachrichtigung
+      const notification = document.createElement('div');
+      notification.className = `p-4 ${classes} rounded-lg mb-4 search-notification`;
+      notification.textContent = message;
+      
+      ordersContainer.parentNode.insertBefore(notification, ordersContainer);
+      
+      setTimeout(() => {
+        notification.remove();
+      }, 3000);
+    }
+  });
+</script>
+{% endblock %}

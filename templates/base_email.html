@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{% endblock %}</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            margin: 0;
+            padding: 0;
+            background-color: #f7f7f7;
+        }
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            padding: 20px 0;
+            
+        }
+        .content {
+            background-color: #ffffff;
+            padding: 20px;
+            border: 1px solid #e2e2e2;
+            
+        }
+        .footer {
+            text-align: center;
+            padding: 20px 0;
+            font-size: 12px;
+            color: #666;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 500;
+            margin-bottom: 16px;
+        }
+        p {
+            margin-top: 0;
+            margin-bottom: 16px;
+        }
+        .btn {
+            display: inline-block;
+            background-color: #000;
+            color: #fff;
+            text-decoration: none;
+            padding: 10px 16px;
+            font-weight: 500;
+         
+        }
+        .btn:hover {
+            background-color: #000;
+        }
+        .summary {
+            background-color: #f7f7f7;
+            padding: 16px;
+            border-top: 1px solid #e2e2e2;
+            margin-top: 20px;
+        }
+    </style>
+    <style>
+        .demo {
+            padding: 5px;
+            background: green;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <p>Ihr Restaurant Logo</p>
+        </div>
+        <div class="content">
+            {% block content %}{% endblock %}
+        </div>
+        <div class="footer">
+            © 2025 Ihr Restaurant. Alle Rechte vorbehalten.<br> <span class="demo">Dies ist nur eine Demo</span><br>
+            <p>Diese E-Mail wurde automatisch generiert, bitte antworten Sie nicht darauf.</p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,31 @@
+{% extends "base_email.html" %}
+
+{% block title %}Verspätungsmeldung{% endblock %}
+
+{% block content %}
+<h1>Verspätungsmeldung</h1>
+
+<p>Sehr geehrte(r) Kunde/Kundin,</p>
+
+<p>wir möchten Sie darüber informieren, dass sich Ihre Bestellung #{{ order.order_number }} leider verzögert.</p>
+
+<div class="summary">
+    <p><strong>Bestellnummer:</strong> #{{ order.order_number }}</p>
+    <p><strong>Ursprüngliche Zeit:</strong> {{ order.pickup_time }}</p>
+    <p><strong>Verzögerung:</strong> {{ delay_text }}</p>
+    
+</div>
+
+<p>Wir entschuldigen uns für die Unannehmlichkeiten und danken für Ihr Verständnis.</p>
+
+<p>Sollte die neue Zeit für Sie nicht passen, kontaktieren Sie uns bitte umgehend, um eine alternative Lösung zu finden.</p>
+
+<p style="text-align: center;">
+    <a href="{{ server_url }}/track/{{ order.order_number }}" class="btn">Bestelldetails anzeigen</a>
+</p>
+
+<p>Bei weiteren Fragen stehen wir Ihnen gerne zur Verfügung.</p>
+
+<p>Mit freundlichen Grüßen,<br>
+Ihr Shop-Team</p>
+{% endblock %}

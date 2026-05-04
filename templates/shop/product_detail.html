@@ -1,0 +1,493 @@
+{% extends 'shop/base.html' %}
+
+{% block title %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-2 py-3 lg:flex lg:gap-4">
+    <!-- Product Images and Collapsible Description -->
+    <div class="w-full lg:w-1/2">
+        <div class="bg-white p-4 border border-gray-200 sticky top-8">
+            <div class="w-full h-64 md:h-80 mb-4">
+                <img src="/static/uploads/class/{{ product.name|normalize_filename }}.png" 
+                     alt="{{ product.name }}" 
+                     class="w-full h-full object-cover">
+            </div>
+    
+            {% if product.label %}
+            <div class="bg-black text-white px-3 py-1 inline-block text-sm">
+                {{ product.label }}
+            </div>
+            {% endif %}
+        </div>
+  
+        
+    
+        <!-- Collapsible Description -->
+        <div class="mt-4 bg-white border border-gray-200">
+            <button id="description-toggle" class="w-full flex justify-between items-center px-4 py-3 text-left border-b">
+                <span class="font-medium text-sm md:text-base">Beschreibung</span>
+                <svg id="chevron-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </button>
+            <div id="description-content" class="p-4 text-gray-600 text-sm md:text-base hidden">
+                {% if product.description %}
+                    {{ product.description }}
+                {% else %}
+                    <p class="text-gray-500">Keine Beschreibung verfügbar.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Product Details -->
+    <div class="w-full lg:w-1/2 mt-4 lg:mt-0">
+        <div class="bg-white p-4 border border-gray-200">
+            <h1 class="text-xl md:text-2xl font-medium mb-2">{{ product.name }}</h1>
+            <div class="flex items-center mb-4">
+                <span class="text-lg md:text-xl font-medium">
+                    €<span id="total-price">{{ "%.2f"|format(product.base_price) }}</span>
+                </span>
+                <span class="ml-4 text-gray-500 text-sm">
+                    <i class="fas fa-weight-hanging"></i> {{ product.capacity }}g
+                </span>
+            </div>
+
+            <p class="text-gray-600 mb-6 text-sm md:text-base">{{ product.description }}</p>
+
+            <form id="product-form" method="post" action="{{ url_for('add_to_cart', product_id=product.id) }}">
+                {% for step in steps %}
+                <div class="mb-6 border-b pb-6 step-container" data-step-id="{{ step.id }}" data-required="{{ step.required|lower }}" data-step-type="{{ step.type }}">
+                    <div class="flex justify-between items-start mb-3">
+                        <h3 class="text-base font-medium">
+                            {{ step.name }}
+                            {% if step.required %}<span class="text-red-500 ml-1">*</span>{% endif %}
+                        </h3>
+                   
+                    </div>
+
+                    <div class="grid gap-3 {% if step.type == 'color' %}grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6{% else %}grid-cols-1{% endif %}">
+                        {% for refinement in step_refinements[step.id] %}
+                        <label class="{% if step.type == 'color' %}color-swatch{% else %}option-card{% endif %}">
+                            <input type="{% if step.type == 'multiple' %}checkbox{% else %}radio{% endif %}" 
+                                   name="refinement_{{ step.id }}" 
+                                   value="{{ refinement.id }}" 
+                                   data-price-addition="{{ refinement.price_addition }}"
+                                   data-step-id="{{ step.id }}"
+                                   class="refinement-option hidden peer"
+                                   {% if step.required and loop.first %}checked{% endif %}
+                                   onclick="handleRefinementClick(this);">
+                            
+                            <div class="border border-gray-200 cursor-pointer peer-checked:border-black peer-checked:bg-gray-50">
+                                {% if refinement.name %}
+                                <div class="refinement-image-container">
+                                    <img src="/static/uploads/ver/{{ refinement.name|normalize_filename }}.png" 
+                                         alt="{{ refinement.name }}" 
+                                         class="w-full h-20 object-cover">
+                                </div>
+                                {% endif %}
+                                
+                                <div class="p-3">
+                                    <div class="font-medium text-sm md:text-base">{{ refinement.name }}</div>
+                                    
+                                    {% if refinement.label %}
+                                    <span class="text-xs md:text-sm text-gray-500">{{ refinement.label }}</span>
+                                    {% endif %}
+                                    
+                                    {% if refinement.price_addition > 0 %}
+                                    <div class="mt-2 text-xs md:text-sm">
+                                        +€{{ "%.2f"|format(refinement.price_addition) }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </label>
+                        {% endfor %}
+                    </div>
+                    
+                    {% if step.required %}
+                    <div class="error-message text-red-500 mt-2 text-sm hidden">
+                        Bitte wählen Sie mindestens eine Option aus.
+                    </div>
+                    {% endif %}
+                </div>
+                {% endfor %}
+
+                <div class="flex flex-col gap-4">
+                    <div class="flex items-center">
+                        <label class="mr-3 font-medium text-sm md:text-base">Menge:</label>
+                        <input type="number" name="quantity" value="1" min="1" 
+                               class="w-16 px-2 py-1 border" id="quantity-input" onchange="updateTotalPrice()">
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <button type="submit" id="add-to-cart-btn"
+                                class="bg-black px-4 py-2 text-white font-medium transition duration-200 button-enabled"
+                                >
+                            In den Warenkorb
+                        </button>
+                        <div class="ml-4 font-medium">
+                            €<span id="button-price" class="text-lg">{{ "%.2f"|format(product.base_price) }}</span>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  // Select all option cards
+  const optionCards = document.querySelectorAll('.option-card');
+  
+  // Process each option card
+  optionCards.forEach(card => {
+    const imageContainer = card.querySelector('.refinement-image-container');
+    const contentDiv = card.querySelector('.p-3');
+    const img = imageContainer ? imageContainer.querySelector('img') : null;
+    
+    if (img) {
+      // Function to apply layout based on aspect ratio
+      const applyLayout = function() {
+        // Get natural dimensions to determine aspect ratio
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        
+        // Check if image is tall/vertical (hochkant)
+        if (aspectRatio < 0.8) { // Threshold for tall images
+          // Get the inner container that holds both image and text
+          const innerDiv = card.querySelector('.border');
+          
+          // Apply side-by-side layout for tall images
+          innerDiv.style.display = 'flex';
+          innerDiv.style.flexDirection = 'row';
+          innerDiv.style.alignItems = 'stretch';
+          
+          // Style image container to take full height but limited width
+          imageContainer.style.width = '10%';
+          imageContainer.style.minWidth = '10%';
+          imageContainer.style.maxWidth = '10%';
+          imageContainer.style.height = 'auto';
+          imageContainer.style.display = 'flex';
+          imageContainer.style.alignItems = 'center';
+          imageContainer.style.overflow = 'hidden';
+          
+          // Style the image itself
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          img.style.objectFit = 'contain';
+          img.classList.remove('h-20');
+          
+          // Style content div
+          contentDiv.style.width = '70%';
+          contentDiv.style.flex = '1';
+        }
+      };
+      
+      // Run when image loads
+      if (img.complete) {
+        applyLayout();
+      } else {
+        img.onload = applyLayout;
+      }
+    }
+  });
+});
+
+// Add a mutation observer to handle dynamically added content
+const observer = new MutationObserver(function(mutations) {
+  mutations.forEach(function(mutation) {
+    if (mutation.addedNodes.length > 0) {
+      // If nodes were added, check for new option cards
+      const newCards = document.querySelectorAll('.option-card:not([data-layout-processed])');
+      
+      newCards.forEach(card => {
+        card.setAttribute('data-layout-processed', 'true');
+        
+        const imageContainer = card.querySelector('.refinement-image-container');
+        const contentDiv = card.querySelector('.p-3');
+        const img = imageContainer ? imageContainer.querySelector('img') : null;
+        
+        if (img) {
+          const applyLayout = function() {
+            const aspectRatio = img.naturalWidth / img.naturalHeight;
+            
+            if (aspectRatio < 0.8) {
+              const innerDiv = card.querySelector('.border');
+              
+              innerDiv.style.display = 'flex';
+              innerDiv.style.flexDirection = 'row';
+              innerDiv.style.alignItems = 'stretch';
+              
+              imageContainer.style.width = '10%';
+              imageContainer.style.minWidth = '10%';
+              imageContainer.style.maxWidth = '10%';
+              imageContainer.style.height = 'auto';
+              imageContainer.style.display = 'flex';
+              imageContainer.style.alignItems = 'center';
+              imageContainer.style.overflow = 'hidden';
+              
+              img.style.width = '100%';
+              img.style.height = 'auto';
+              img.style.objectFit = 'contain';
+              img.classList.remove('h-20');
+              
+              contentDiv.style.width = '70%';
+              contentDiv.style.flex = '1';
+            }
+          };
+          
+          if (img.complete) {
+            applyLayout();
+          } else {
+            img.onload = applyLayout;
+          }
+        }
+      });
+    }
+  });
+});
+
+// Start observing
+observer.observe(document.body, {
+  childList: true,
+  subtree: true
+});
+
+// Also handle any refinement click events that might change the layout
+const originalHandleRefinementClick = window.handleRefinementClick || function() {};
+
+window.handleRefinementClick = function(element) {
+  // Call the original function first
+  originalHandleRefinementClick(element);
+  
+  // Wait a moment for any DOM changes to complete
+  setTimeout(() => {
+    // Process all cards again to ensure proper layout
+    const allCards = document.querySelectorAll('.option-card');
+    
+    allCards.forEach(card => {
+      const imageContainer = card.querySelector('.refinement-image-container');
+      const img = imageContainer ? imageContainer.querySelector('img') : null;
+      
+      if (img && img.complete) {
+        const aspectRatio = img.naturalWidth / img.naturalHeight;
+        
+        if (aspectRatio < 0.8) {
+          const innerDiv = card.querySelector('.border');
+          const contentDiv = card.querySelector('.p-3');
+          
+          innerDiv.style.display = 'flex';
+          innerDiv.style.flexDirection = 'row';
+          innerDiv.style.alignItems = 'stretch';
+          
+          imageContainer.style.width = '10%';
+          imageContainer.style.minWidth = '10%';
+          imageContainer.style.maxWidth = '10%';
+          imageContainer.style.height = 'auto';
+          imageContainer.style.display = 'flex';
+          imageContainer.style.alignItems = 'center';
+          imageContainer.style.overflow = 'hidden';
+          
+          img.style.width = '100%';
+          img.style.height = 'auto';
+          img.style.objectFit = 'contain';
+          img.classList.remove('h-20');
+          
+          contentDiv.style.width = '70%';
+          contentDiv.style.flex = '1';
+        }
+      }
+    });
+  }, 100);
+};
+</script>
+<style>
+    .color-swatch .peer:checked + div {
+        box-shadow: 0 0 0 2px #000000;
+    }
+    .option-card .peer:checked + div {
+        border-color: #000000;
+        background-color: #f9f9f9;
+    }
+    .step-container.validation-error {
+        border-color: #ef4444;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        background-color: rgba(254, 226, 226, 0.3);
+        border-radius: 0.25rem;
+    }
+    /* Button styles */
+    .button-enabled {
+        background-color: #000;
+        cursor: pointer;
+    }
+    .button-enabled:hover {
+        background-color: #333;
+    }
+    .button-disabled {
+        background-color: #ccc;
+        cursor: not-allowed;
+    }
+    /* Refinement image styles */
+    .refinement-image-container {
+        width: 100%;
+        overflow: hidden;
+        line-height: 0;
+    }
+    .refinement-image-container img {
+        width: 100%;
+        display: block;
+    }
+    
+    /* Mobile optimizations */
+    @media (max-width: 640px) {
+        .container {
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+        }
+    }
+</style>
+
+<script>
+// Global variables for price calculation and validation
+let basePrice = {{ product.base_price }};
+let selectedRefinementsPrice = 0;
+let currentTotalPrice = basePrice;
+let requiredSteps = {};
+let allStepsValid = false;
+
+// Initialize when DOM is loaded
+document.addEventListener('DOMContentLoaded', function() {
+    // Setup description toggle
+    const descriptionToggle = document.getElementById('description-toggle');
+    const descriptionContent = document.getElementById('description-content');
+    const chevronIcon = document.getElementById('chevron-icon');
+    
+    descriptionToggle.addEventListener('click', function() {
+        descriptionContent.classList.toggle('hidden');
+        chevronIcon.classList.toggle('rotate-180');
+    });
+    
+    // Initialize required steps tracking
+    const stepContainers = document.querySelectorAll('.step-container');
+    stepContainers.forEach(container => {
+        const stepId = container.dataset.stepId;
+        const isRequired = container.dataset.required === 'true';
+        
+        if (isRequired) {
+            // Since we've pre-selected the first option in the template, mark as fulfilled
+            requiredSteps[stepId] = true;
+        }
+    });
+    
+    // Initialize quantity change listener
+    document.getElementById('quantity-input').addEventListener('change', updateTotalPrice);
+    
+    // Calculate prices based on pre-selected options
+    calculateSelectedRefinementsPrice();
+    updateTotalPrice();
+    validateAllSteps();
+});
+
+// Handle refinement click
+function handleRefinementClick(elem) {
+    const stepId = elem.dataset.stepId;
+    
+    // Update required step status if applicable
+    if (stepId in requiredSteps) {
+        requiredSteps[stepId] = true; // Mark this step as fulfilled
+    }
+    
+    // Validate and update prices
+    validateAllSteps();
+    calculateSelectedRefinementsPrice();
+    updateTotalPrice();
+}
+
+// Calculate price additions from all selected refinements
+function calculateSelectedRefinementsPrice() {
+    selectedRefinementsPrice = 0;
+    
+    // Get all selected refinements
+    const selectedRefinements = document.querySelectorAll('input[name^="refinement_"]:checked');
+    
+    // Add price additions
+    selectedRefinements.forEach(refinement => {
+        const priceAddition = parseFloat(refinement.dataset.priceAddition) || 0;
+        selectedRefinementsPrice += priceAddition;
+    });
+    
+    return selectedRefinementsPrice;
+}
+
+// Update displayed price
+function updateTotalPrice() {
+    // Get quantity
+    const quantity = parseInt(document.getElementById('quantity-input').value) || 1;
+    
+    // Calculate total
+    currentTotalPrice = (basePrice + selectedRefinementsPrice) * quantity;
+    
+    // Update price displays
+    document.getElementById('total-price').textContent = currentTotalPrice.toFixed(2);
+    document.getElementById('button-price').textContent = currentTotalPrice.toFixed(2);
+}
+
+// Validate all steps and manage button state
+function validateAllSteps() {
+    const stepContainers = document.querySelectorAll('.step-container');
+    const addToCartBtn = document.getElementById('add-to-cart-btn');
+    allStepsValid = true;
+    
+    // Hide all error messages initially
+    document.querySelectorAll('.error-message').forEach(msg => {
+        msg.classList.add('hidden');
+    });
+    
+    // Reset validation styling
+    stepContainers.forEach(container => {
+        container.classList.remove('validation-error');
+    });
+    
+    // Check each required step
+    stepContainers.forEach(container => {
+        const stepId = container.dataset.stepId;
+        const isRequired = container.dataset.required === 'true';
+        
+        if (isRequired) {
+            const inputs = container.querySelectorAll('input.refinement-option');
+            const errorMessage = container.querySelector('.error-message');
+            
+            // Check if any option is selected
+            const isAnyChecked = Array.from(inputs).some(input => input.checked);
+            
+            // Update our global tracking
+            requiredSteps[stepId] = isAnyChecked;
+            
+            if (!isAnyChecked) {
+                allStepsValid = false;
+                container.classList.add('validation-error');
+                if (errorMessage) {
+                    errorMessage.classList.remove('hidden');
+                }
+            }
+        }
+    });
+    
+    // Check if ALL required steps are fulfilled
+    allStepsValid = Object.values(requiredSteps).every(fulfilled => fulfilled === true);
+    
+    // Update button state based on validation
+    if (allStepsValid) {
+        addToCartBtn.disabled = false;
+        addToCartBtn.classList.remove('bg-gray-400', 'button-disabled');
+        addToCartBtn.classList.add('bg-black', 'button-enabled');
+    } else {
+        addToCartBtn.disabled = true;
+        addToCartBtn.classList.remove('bg-black', 'button-enabled');
+        addToCartBtn.classList.add('bg-gray-400', 'button-disabled');
+    }
+    
+    return allStepsValid;
+}
+</script>
+{% endblock %}
