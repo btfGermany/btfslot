@@ -178,6 +178,70 @@
                            class="w-full px-3 py-2 border border-gray-300 focus:outline-none focus:border-black">
                 </div>
                 
+                <!-- Zahlungsmethode Auswahl -->
+                <div>
+                    <label class="block text-sm mb-2">Zahlungsmethode*</label>
+                    
+                    {% if force_paypal %}
+                    <!-- PayPal ist Pflicht - keine Auswahl möglich -->
+                    <div class="p-3 border border-gray-300 rounded bg-gray-50">
+                        <div class="flex items-center">
+                            <svg class="h-6 w-6 text-blue-600 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.483 1.012 4.287-.023.143-.046.292-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.901l-1.12 7.106zm14.146-14.42a3.35 3.35 0 0 0-.607-.541c-.013.076-.026.175-.038.249a3.166 3.166 0 0 0-1.588.103c-.033-.063-.078-.127-.111-.203a4.3 4.3 0 0 1-.771.534c.013-.076.039-.14.052-.216a3.764 3.764 0 0 1-.771.534c-.052-.127-.091-.315-.13-.428a3.196 3.196 0 0 0-1.533-.103c-.03.063-.078.127-.111.203a4.313 4.313 0 0 1-.77-.535c.012.076.038.14.063.216a3.226 3.226 0 0 1-.771.535c-.053-.127-.104-.315-.143-.441c-.47-.063-.917-.127-1.353-.127-.829 0-1.556.216-2.087.641-.584.472-.764 1.028-.829 1.445-.013.026-.013.063-.026.089-.052.165-.091.315-.13.465l-1.224.78c.013.013.026.013.039.013.026-.076.078-.14.111-.203.052-.09.078-.165.104-.267.026-.013.039-.039.052-.063.026-.076.065-.14.091-.203.052-.09.104-.165.143-.267a8.435 8.435 0 0 0-.104-.442c.013 0 .013-.013.026-.013.026-.076.065-.14.091-.203.065-.076.104-.152.143-.228.052-.09.104-.165.143-.267.026-.013.039-.039.052-.063.026-.076.065-.14.091-.203.052-.09.104-.165.156-.267.064-.076.115-.152.154-.228a3.254 3.254 0 0 1-.091-.442h-1.659c.013.127.013.267.026.392.065.856.306 1.432.765 1.856.357.318.79.492 1.273.492.26 0 .523-.026.785-.078.91-.178 1.634-.635 2.073-1.352.026-.039.039-.065.052-.09.391-.76.638-1.432.725-2.028.065-.442.078-.884.052-1.316-.039-.699-.224-1.271-.584-1.78-.343-.482-.84-.752-1.444-.804l-.077-.013z"/>
+                            </svg>
+                            <span class="font-medium">PayPal</span>
+                            <span class="ml-2 text-xs text-gray-500">(Pflicht)</span>
+                        </div>
+                        <p class="text-sm text-gray-600 mt-1">
+                            Bei dieser Bestellung ist nur PayPal als Zahlungsmethode möglich.
+                        </p>
+                    </div>
+                    {% else %}
+                    <!-- Auswahl zwischen PayPal und Barzahlung -->
+                    <div class="space-y-2">
+                        {% if paypal_enabled and allow_cash %}
+                        <!-- Beide Optionen möglich -->
+                        <label class="flex items-center justify-between p-3 border border-gray-300 rounded cursor-pointer hover:bg-gray-50">
+                            <div class="flex items-center">
+                                <input type="radio" name="payment_method" value="cash" checked class="h-4 w-4 text-gray-900 border-gray-300 focus:ring-gray-500">
+                                <span class="ml-2 text-sm">Barzahlung bei Abholung</span>
+                            </div>
+                        </label>
+                        <label class="flex items-center justify-between p-3 border border-gray-300 rounded cursor-pointer hover:bg-gray-50">
+                            <div class="flex items-center">
+                                <input type="radio" name="payment_method" value="paypal" class="h-4 w-4 text-gray-900 border-gray-300 focus:ring-gray-500">
+                                <span class="ml-2 text-sm">PayPal</span>
+                            </div>
+                            <svg class="h-6 w-6 text-blue-600" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h7.46c2.57 0 4.578.543 5.69 1.81 1.01 1.15 1.304 2.483 1.012 4.287-.023.143-.046.292-.077.437-.983 5.05-4.349 6.797-8.647 6.797h-2.19c-.524 0-.968.382-1.05.901l-1.12 7.106z"/>
+                            </svg>
+                        </label>
+                        {% elif paypal_enabled and not allow_cash %}
+                        <!-- Nur PayPal möglich -->
+                        <div class="p-3 border border-gray-300 rounded bg-gray-50">
+                            <div class="flex items-center">
+                                <input type="radio" name="payment_method" value="paypal" checked class="h-4 w-4 text-gray-900 border-gray-300 focus:ring-gray-500">
+                                <span class="ml-2 text-sm">PayPal</span>
+                            </div>
+                        </div>
+                        {% elif not paypal_enabled and allow_cash %}
+                        <!-- Nur Barzahlung möglich -->
+                        <div class="p-3 border border-gray-300 rounded bg-gray-50">
+                            <div class="flex items-center">
+                                <input type="radio" name="payment_method" value="cash" checked class="h-4 w-4 text-gray-900 border-gray-300 focus:ring-gray-500">
+                                <span class="ml-2 text-sm">Barzahlung bei Abholung</span>
+                            </div>
+                        </div>
+                        {% else %}
+                        <!-- Keine Zahlungsmethode konfiguriert -->
+                        <div class="p-3 border border-red-300 rounded bg-red-50">
+                            <p class="text-sm text-red-600">Derzeit ist keine Zahlungsmethode verfügbar. Bitte kontaktieren Sie uns.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+                
                 <!-- Abholdatum Auswahl -->
                 <div>
                     <label class="block text-sm mb-1">Abholdatum*</label>
