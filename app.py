@@ -4777,4 +4777,6 @@ def api_health():
     })
 
 if __name__ == '__main__':
+    # Datenbank auf neuesten Stand bringen
+    init_db_schema()
     app.run(debug=True, host="0.0.0.0", port=1234) 
