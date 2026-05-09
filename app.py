@@ -684,9 +684,46 @@ def permission_required(permission_name):
 def init_db():
     conn = get_db_connection()
     
-    # Erstelle Tabellen falls nicht vorhanden
-    with open('schema.sql', 'r') as f:
-        conn.executescript(f.read())
+    # Prüfe ob Datenbank bereits initialisiert wurde
+    users_table = conn.execute("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='users'
+    """).fetchone()
+    
+    if users_table:
+        # Datenbank existiert bereits - nur paypal_test_logs hinzufügen falls nötig
+        try:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS paypal_test_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    test_order_id TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    paypal_mode TEXT NOT NULL,
+                    test_scenario TEXT NOT NULL,
+                    success BOOLEAN NOT NULL DEFAULT 0,
+                    error_message TEXT,
+                    details TEXT,
+                    test_email TEXT,
+                    paypal_transaction_id TEXT,
+                    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.commit()
+            print("Database check completed - tables already exist")
+        except Exception as e:
+            print(f"Note: {e}")
+        conn.close()
+        return
+    
+    # Datenbank existiert nicht - erstelle sie komplett neu
+    try:
+        with open('schema.sql', 'r') as f:
+            conn.executescript(f.read())
+        print("Database schema created")
+    except Exception as e:
+        print(f"Schema error: {e}")
+        conn.close()
+        return
     
     # Initiale Rollen und Berechtigungen erstellen
     roles = conn.execute('SELECT COUNT(*) as count FROM user_roles').fetchone()
