@@ -684,6 +684,39 @@ def permission_required(permission_name):
 def init_db():
     conn = get_db_connection()
     
+    # Prüfe ob Datenbank bereits initialisiert wurde
+    table_exists = conn.execute("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='users'
+    """).fetchone()
+    
+    if table_exists:
+        # Datenbank existiert bereits, nur paypal_test_logs hinzufügen falls nicht vorhanden
+        test_logs_exists = conn.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name='paypal_test_logs'
+        """).fetchone()
+        
+        if not test_logs_exists:
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS paypal_test_logs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    test_order_id TEXT NOT NULL,
+                    amount REAL NOT NULL,
+                    paypal_mode TEXT NOT NULL,
+                    test_scenario TEXT NOT NULL,
+                    success BOOLEAN NOT NULL DEFAULT 0,
+                    error_message TEXT,
+                    details TEXT,
+                    test_email TEXT,
+                    paypal_transaction_id TEXT,
+                    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            conn.commit()
+        conn.close()
+        return
+    
     # Erstelle Tabellen falls nicht vorhanden
     with open('schema.sql', 'r') as f:
         conn.executescript(f.read())
