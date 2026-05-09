@@ -684,44 +684,46 @@ def permission_required(permission_name):
 def init_db():
     conn = get_db_connection()
     
-    # Prüfe ob Datenbank bereits initialisiert wurde
-    users_table = conn.execute("""
-        SELECT name FROM sqlite_master
-        WHERE type='table' AND name='users'
-    """).fetchone()
-    
-    if users_table:
-        # Datenbank existiert bereits - nur paypal_test_logs hinzufügen falls nötig
-        try:
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS paypal_test_logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    test_order_id TEXT NOT NULL,
-                    amount REAL NOT NULL,
-                    paypal_mode TEXT NOT NULL,
-                    test_scenario TEXT NOT NULL,
-                    success BOOLEAN NOT NULL DEFAULT 0,
-                    error_message TEXT,
-                    details TEXT,
-                    test_email TEXT,
-                    paypal_transaction_id TEXT,
-                    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            conn.commit()
-            print("Database check completed - tables already exist")
-        except Exception as e:
-            print(f"Note: {e}")
-        conn.close()
-        return
-    
-    # Datenbank existiert nicht - erstelle sie komplett neu
     try:
+        # Prüfe ob Datenbank bereits initialisiert wurde
+        users_table = conn.execute("""
+            SELECT name FROM sqlite_master
+            WHERE type='table' AND name='users'
+        """).fetchone()
+        
+        if users_table:
+            # Datenbank existiert bereits - füge alle fehlende Tabellen hinzu
+            # Lese schema.sql und führe alle CREATE TABLE IF NOT EXISTS Statements aus
+            with open('schema.sql', 'r') as f:
+                schema_content = f.read()
+            
+            # Teile die Statements - jeder CREATE TABLE endet mit ;
+            statements = schema_content.split(';')
+            created_count = 0
+            
+            for stmt in statements:
+                stmt = stmt.strip()
+                if stmt.startswith('CREATE TABLE IF NOT EXISTS'):
+                    table_name = stmt.split('(')[0].replace('CREATE TABLE IF NOT EXISTS', '').strip()
+                    try:
+                        conn.execute(stmt + ';')
+                        created_count += 1
+                    except Exception as te:
+                        pass  # Tabelle existiert bereits oder Fehler
+            
+            conn.commit()
+            print(f"Database check completed - added {created_count} tables")
+            conn.close()
+            return
+        
+        # Datenbank existiert nicht - erstelle sie komplett neu
         with open('schema.sql', 'r') as f:
             conn.executescript(f.read())
         print("Database schema created")
+        
     except Exception as e:
-        print(f"Schema error: {e}")
+        print(f"Database init error: {e}")
+    finally:
         conn.close()
         return
     
