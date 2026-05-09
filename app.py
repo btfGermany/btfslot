@@ -685,19 +685,14 @@ def init_db():
     conn = get_db_connection()
     
     # Prüfe ob Datenbank bereits initialisiert wurde
-    table_exists = conn.execute("""
+    users_table = conn.execute("""
         SELECT name FROM sqlite_master
         WHERE type='table' AND name='users'
     """).fetchone()
     
-    if table_exists:
-        # Datenbank existiert bereits, nur paypal_test_logs hinzufügen falls nicht vorhanden
-        test_logs_exists = conn.execute("""
-            SELECT name FROM sqlite_master
-            WHERE type='table' AND name='paypal_test_logs'
-        """).fetchone()
-        
-        if not test_logs_exists:
+    if users_table:
+        # Datenbank existiert bereits - nur paypal_test_logs hinzufügen falls nötig
+        try:
             conn.execute('''
                 CREATE TABLE IF NOT EXISTS paypal_test_logs (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -714,12 +709,21 @@ def init_db():
                 )
             ''')
             conn.commit()
+            print("Database check completed - tables already exist")
+        except Exception as e:
+            print(f"Note: {e}")
         conn.close()
         return
     
-    # Erstelle Tabellen falls nicht vorhanden
-    with open('schema.sql', 'r') as f:
-        conn.executescript(f.read())
+    # Datenbank existiert nicht - erstelle sie komplett neu
+    try:
+        with open('schema.sql', 'r') as f:
+            conn.executescript(f.read())
+        print("Database schema created")
+    except Exception as e:
+        print(f"Schema error: {e}")
+        conn.close()
+        return
     
     # Initiale Rollen und Berechtigungen erstellen
     roles = conn.execute('SELECT COUNT(*) as count FROM user_roles').fetchone()
