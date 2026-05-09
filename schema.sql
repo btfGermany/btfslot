@@ -159,6 +159,21 @@ CREATE TABLE IF NOT EXISTS payment_settings (
     updated TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- PayPal Test-Logs für Developer-Modus
+CREATE TABLE IF NOT EXISTS paypal_test_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    test_order_id TEXT NOT NULL,
+    amount REAL NOT NULL,
+    paypal_mode TEXT NOT NULL,
+    test_scenario TEXT NOT NULL,
+    success BOOLEAN NOT NULL DEFAULT 0,
+    error_message TEXT,
+    details TEXT,
+    test_email TEXT,
+    paypal_transaction_id TEXT,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Tabelle für orders erweitert um payment_method
 ALTER TABLE orders ADD COLUMN payment_method TEXT DEFAULT 'cash';
 
