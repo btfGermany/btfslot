@@ -692,40 +692,27 @@ def init_db():
         """).fetchone()
         
         if users_table:
-            # Datenbank existiert bereits - füge alle fehlende Tabellen aus schema.sql hinzu
+            # Datenbank existiert bereits - füge alle fehlende Tabellen hinzu
+            # Lese schema.sql und führe alle CREATE TABLE IF NOT EXISTS Statements aus
             with open('schema.sql', 'r') as f:
-                schema_sql = f.read()
+                schema_content = f.read()
             
-            # Extrahiere alle CREATE TABLE Statements
-            import re
-            create_statements = re.findall(
-                r'CREATE TABLE IF NOT EXISTS (\w+) \((.*?)\);',
-                schema_sql, re.DOTALL
-            )
+            # Teile die Statements - jeder CREATE TABLE endet mit ;
+            statements = schema_content.split(';')
+            created_count = 0
             
-            for table_name_match in create_statements:
-                # Prüfe ob Tabelle existiert
-                table_exists = conn.execute(
-                    "SELECT name FROM sqlite_master WHERE type='table' AND name=?",
-                    (table_name_match,)
-                ).fetchone()
-                
-                if not table_exists:
-                    # Extrahieren wir das einzelne CREATE Statement
-                    match = re.search(
-                        rf'CREATE TABLE IF NOT EXISTS {table_name_match} \((.*?)\);',
-                        schema_sql, re.DOTALL
-                    )
-                    if match:
-                        create_sql = f"CREATE TABLE IF NOT EXISTS {table_name_match} ({match.group(1)});"
-                        try:
-                            conn.execute(create_sql)
-                            print(f"Created missing table: {table_name_match}")
-                        except Exception as te:
-                            print(f"Error creating {table_name_match}: {te}")
+            for stmt in statements:
+                stmt = stmt.strip()
+                if stmt.startswith('CREATE TABLE IF NOT EXISTS'):
+                    table_name = stmt.split('(')[0].replace('CREATE TABLE IF NOT EXISTS', '').strip()
+                    try:
+                        conn.execute(stmt + ';')
+                        created_count += 1
+                    except Exception as te:
+                        pass  # Tabelle existiert bereits oder Fehler
             
             conn.commit()
-            print("Database check completed - added missing tables")
+            print(f"Database check completed - added {created_count} tables")
             conn.close()
             return
         
