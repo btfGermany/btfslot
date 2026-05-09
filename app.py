@@ -15,6 +15,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 from sklearn.ensemble import RandomForestRegressor
 import inspect
+import uuid
 from urllib.parse import quote  # Oben importieren
 
 
@@ -3528,6 +3529,235 @@ def api_payment_settings():
         'force_paypal': bool(settings['force_paypal']),
         'allow_cash_payment': bool(settings['allow_cash_payment']),
         'paypal_email': settings['paypal_email'] or ''
+    })
+
+
+# ============================================
+# PayPal Developer/Test-Modus
+# ============================================
+
+@app.route('/admin/paypal-developer')
+@login_required
+def paypal_developer():
+    """PayPal Developer Test-Interface"""
+    if current_user.role != 'admin':
+        flash("Zugriff verweigert", 'error')
+        return redirect(url_for('dashboard'))
+    
+    settings = get_payment_settings()
+    
+    # Letzte Test-Transaktionen abrufen
+    conn = get_db_connection()
+    test_transactions = conn.execute('''
+        SELECT * FROM paypal_test_logs 
+        ORDER BY created DESC 
+        LIMIT 20
+    ''').fetchall()
+    conn.close()
+    
+    return render_template('admin/paypal_developer.html', 
+                         settings=settings,
+                         test_transactions=test_transactions)
+
+
+@app.route('/admin/paypal-developer/test-payment', methods=['POST'])
+@login_required
+def paypal_test_payment():
+    """Testet eine PayPal-Zahlung mit dem eingestellten Modus"""
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Zugriff verweigert'}), 403
+    
+    settings = get_payment_settings()
+    paypal_mode = settings.get('paypal_mode', 'sandbox')
+    paypal_enabled = bool(settings.get('paypal_enabled', 0))
+    
+    test_amount = float(request.form.get('test_amount', 10.00))
+    test_email = request.form.get('test_email', 'test@example.com')
+    test_scenario = request.form.get('test_scenario', 'success')
+    
+    conn = get_db_connection()
+    
+    # Test-Transaktion simulieren
+    test_order_id = f"TEST-{uuid.uuid4().hex[:8].upper()}"
+    
+    # PayPal API-Aufruf simulieren basierend auf Modus
+    result = {
+        'success': False,
+        'test_order_id': test_order_id,
+        'amount': test_amount,
+        'mode': paypal_mode,
+        'scenario': test_scenario,
+        'error': None,
+        'details': None
+    }
+    
+    if not paypal_enabled:
+        result['error'] = 'PayPal ist nicht aktiviert'
+    elif paypal_mode == 'sandbox':
+        # Sandbox-Modus: Test-Szenarien
+        if test_scenario == 'success':
+            result['success'] = True
+            result['details'] = 'Zahlung erfolgreich im Sandbox-Modus'
+            result['paypal_transaction_id'] = f"SANDBOX-{uuid.uuid4().hex[:12].upper()}"
+        elif test_scenario == 'decline':
+            result['error'] = 'Zahlung wurde abgelehnt (simuliert)'
+            result['details'] = 'Die Karte wurde abgelehnt. Bitte verwenden Sie eine andere Zahlungsmethode.'
+        elif test_scenario == 'expired':
+            result['error'] = 'Zahlungszeitraum abgelaufen'
+            result['details'] = 'Die Zahlung wurde nicht innerhalb von 30 Minuten abgeschlossen.'
+        elif test_scenario == 'error':
+            result['error'] = 'PayPal-Systemfehler'
+            result['details'] = 'Ein internen PayPal-Fehler ist aufgetreten. Bitte versuchen Sie es später erneut.'
+    else:
+        # Live-Modus: Nur Simulation (keine echten API-Aufrufe)
+        result['success'] = True
+        result['details'] = f'Live-Modus: Testzahlung für {test_amount} EUR würde jetzt an PayPal gesendet'
+        result['note'] = 'Dies ist ein Simulationstest. Im echten Live-Modus wird eine echte PayPal-Transaktion erstellt.'
+    
+    # Test-Transaktion in Datenbank speichern
+    conn.execute('''
+        INSERT INTO paypal_test_logs 
+        (test_order_id, amount, paypal_mode, test_scenario, success, error_message, details, test_email)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (test_order_id, test_amount, paypal_mode, test_scenario, 
+          1 if result['success'] else 0, result['error'], result.get('details'), test_email))
+    conn.commit()
+    conn.close()
+    
+    if request.headers.get('Accept') == 'application/json':
+        return jsonify(result)
+    
+    if result['success']:
+        flash(f'Testzahlung erfolgreich! Betrag: {test_amount} EUR, Modus: {paypal_mode}', 'success')
+    else:
+        flash(f'Testzahlung fehlgeschlagen: {result.get("error", "Unbekannter Fehler")}', 'error')
+    
+    return redirect(url_for('paypal_developer'))
+
+
+@app.route('/admin/paypal-developer/validate-config', methods=['POST'])
+@login_required
+def paypal_validate_config():
+    """Validiert die PayPal-Konfiguration"""
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Zugriff verweigert'}), 403
+    
+    settings = get_payment_settings()
+    
+    issues = []
+    warnings = []
+    
+    # Validierung der Konfiguration
+    if not settings.get('paypal_enabled'):
+        issues.append('PayPal ist nicht aktiviert')
+    
+    if not settings.get('paypal_email'):
+        issues.append('PayPal-E-Mail-Adresse fehlt')
+    
+    if not settings.get('paypal_client_id'):
+        issues.append('PayPal Client ID fehlt')
+    
+    if not settings.get('paypal_secret'):
+        issues.append('PayPal Secret fehlt')
+    
+    if settings.get('paypal_mode') == 'sandbox':
+        warnings.append('PayPal läuft im Sandbox-Modus (Testmodus)')
+    
+    # Prüfen, ob Force-PayPal aktiviert ist
+    if settings.get('force_paypal') and not settings.get('allow_cash_payment'):
+        pass  # Das ist OK, nur eine Info
+    
+    return jsonify({
+        'success': len(issues) == 0,
+        'issues': issues,
+        'warnings': warnings,
+        'current_config': {
+            'mode': settings.get('paypal_mode'),
+            'enabled': bool(settings.get('paypal_enabled')),
+            'email': settings.get('paypal_email', '').replace('@', '***') if settings.get('paypal_email') else ''
+        }
+    })
+
+
+@app.route('/admin/paypal-developer/switch-mode', methods=['POST'])
+@login_required
+def paypal_switch_mode():
+    """Schaltet zwischen Sandbox und Live-Modus um"""
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Zugriff verweigert'}), 403
+    
+    new_mode = request.form.get('mode', 'sandbox')
+    
+    if new_mode not in ['sandbox', 'live']:
+        return jsonify({'success': False, 'error': 'Ungültiger Modus'}), 400
+    
+    confirm = request.form.get('confirm', 'no')
+    
+    if new_mode == 'live' and confirm != 'yes':
+        return jsonify({
+            'success': False, 
+            'error': 'Bitte bestätigen Sie den Wechsel zum Live-Modus',
+            'requires_confirmation': True
+        }), 400
+    
+    conn = get_db_connection()
+    conn.execute('''
+        UPDATE payment_settings 
+        SET paypal_mode = ?
+        WHERE id = (SELECT id FROM payment_settings ORDER BY id DESC LIMIT 1)
+    ''', (new_mode,))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({
+        'success': True,
+        'message': f'PayPal-Modus wechsel zu {new_mode.upper()}',
+        'old_mode': 'sandbox' if new_mode == 'live' else 'live',
+        'new_mode': new_mode
+    })
+
+
+@app.route('/admin/paypal-developer/test-webhook', methods=['POST'])
+@login_required
+def paypal_test_webhook():
+    """Testet den PayPal Webhook"""
+    if current_user.role != 'admin':
+        return jsonify({'success': False, 'error': 'Zugriff verweigert'}), 403
+    
+    webhook_type = request.form.get('webhook_type', 'payment_completed')
+    
+    # Simuliere Webhook-Events
+    webhook_events = {
+        'payment_completed': {
+            'event_type': 'CHECKOUT.ORDER.APPROVED',
+            'resource': {
+                'status': 'COMPLETED',
+                'id': f"ORDER-{uuid.uuid4().hex[:8].upper()}"
+            }
+        },
+        'payment_failed': {
+            'event_type': 'PAYMENT.CAPTURE.DENIED',
+            'resource': {
+                'status': 'DENIED',
+                'id': f"ORDER-{uuid.uuid4().hex[:8].upper()}"
+            }
+        },
+        'refund': {
+            'event_type': 'PAYMENT.CAPTURE.REFUNDED',
+            'resource': {
+                'status': 'REFUNDED',
+                'id': f"ORDER-{uuid.uuid4().hex[:8].upper()}"
+            }
+        }
+    }
+    
+    event = webhook_events.get(webhook_type, webhook_events['payment_completed'])
+    
+    return jsonify({
+        'success': True,
+        'event_type': webhook_type,
+        'simulated_event': event,
+        'message': f'Test-Webhook vom Typ {webhook_type} empfangen (simuliert)'
     })
 
 
