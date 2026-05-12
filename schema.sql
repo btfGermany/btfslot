@@ -248,3 +248,21 @@ CREATE TABLE IF NOT EXISTS api_usage_logs (
     created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (api_key_id) REFERENCES api_keys(id) ON DELETE CASCADE
 );
+
+-- Suchprotokolle
+CREATE TABLE IF NOT EXISTS search_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    search_query TEXT NOT NULL,
+    user_ip TEXT,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Zeit-Slot Vorhersagen
+CREATE TABLE IF NOT EXISTS time_slot_predictions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slot_date TEXT NOT NULL,
+    slot_time TEXT NOT NULL,
+    predicted_demand INTEGER NOT NULL DEFAULT 0,
+    confidence REAL DEFAULT 0.0,
+    created TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
