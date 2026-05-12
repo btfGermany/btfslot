@@ -1066,7 +1066,7 @@ def dashboard():
         today=today
     )
 # Product management
-@app.route('/admin/products')
+@app.route('/admin/products', endpoint='manage_products')
 @login_required
 def manage_products():
     if current_user.role != 'admin':
@@ -1602,7 +1602,7 @@ def toggle_refinement_active(refinement_id):
     return redirect(url_for('manage_refinements', step_id=step_id))
 
 # Time slot management
-@app.route('/admin/time-slots')
+@app.route('/admin/time-slots', endpoint='time_slots')
 @login_required
 def manage_time_slots():
     if current_user.role != 'admin':
@@ -3457,7 +3457,7 @@ def get_payment_settings():
     return settings
 
 
-@app.route('/admin/payment-settings', methods=['GET', 'POST'])
+@app.route('/admin/payment-settings', methods=['GET', 'POST'], endpoint='payment_settings')
 @login_required
 def payment_settings():
     """Admin-Seite für Zahlungseinstellungen"""
@@ -3887,7 +3887,7 @@ def get_product_availability_for_date(product_id, date, time=None):
     return max(0, available)
 
 
-@app.route('/admin/availability-rules')
+@app.route('/admin/availability-rules', endpoint='availability_rules')
 @login_required
 def availability_rules():
     """Admin-Seite für Verfügbarkeitsregeln"""
@@ -4219,7 +4219,7 @@ def log_api_usage(api_key_id, endpoint, method, status_code, response_time_ms, i
     conn.close()
 
 
-@app.route('/admin/api-keys')
+@app.route('/admin/api-keys', endpoint='api_keys')
 @login_required
 def api_keys():
     """Admin-Seite für API-Schlüssel"""
