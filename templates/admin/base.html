@@ -227,7 +227,7 @@ border-radius: 12px !important;
             </a>
           </li>
           <li class="mb-2">
-            <a href="{{ url_for('manage_time_slots') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path.startswith('/admin/time-slots') %}bg-gray-100{% endif %}">
+            <a href="{{ url_for('time_slots') }}" class="flex items-center p-2 rounded hover:bg-gray-100 {% if request.path.startswith('/admin/time-slots') %}bg-gray-100{% endif %}">
               <!-- Zeitfenster Icon -->
               <svg class="h-5 w-5 text-gray-600 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
