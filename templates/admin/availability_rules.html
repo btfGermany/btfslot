@@ -123,8 +123,8 @@
                                     <div>
                                         <span class="text-gray-500">Wochentage:</span>
                                         <span class="ml-2 font-medium">
-                                            {% set days = {'0': 'So', '1': 'Mo', '2': 'Di', '3': 'Mi', '4': 'Do', '5': 'Fr', '6': 'Sa' %}
-                                            {% set selected = item.rule.weekdays.split(',') %}
+                                            {% set days = {'0': 'So', '1': 'Mo', '2': 'Di', '3': 'Mi', '4': 'Do', '5': 'Fr', '6': 'Sa' -%}
+                                            {% set selected = item.rule.weekdays.split(',') -%}
                                             {% for d in selected %}{{ days.get(d, d) }}{% if not loop.last %}, {% endif %}{% endfor %}
                                         </span>
                                     </div>
