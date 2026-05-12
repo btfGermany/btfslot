@@ -6,6 +6,7 @@ Dieses Script:
 1. Löscht die gesamte Datenbank
 2. Erstellt die Datenbank neu mit allen Tabellen
 3. Erstellt den Admin-Benutzer aus config.json
+4. Zeigt alle erstellten Tabellen und Felder
 """
 
 import os
@@ -38,6 +39,43 @@ def get_db_connection():
     conn = sqlite3.connect(DATABASE_FILE)
     conn.row_factory = sqlite3.Row
     return conn
+
+def show_tables():
+    """Zeigt alle Tabellen mit ihren Feldern"""
+    conn = get_db_connection()
+    
+    # Alle Tabellen abrufen
+    tables = conn.execute("""
+        SELECT name FROM sqlite_master 
+        WHERE type='table' AND name NOT LIKE 'sqlite_%'
+        ORDER BY name
+    """).fetchall()
+    
+    print(f"\n{'='*60}")
+    print(f"ERSTELLTE TABELLEN UND FELDER")
+    print(f"{'='*60}")
+    
+    for table in tables:
+        table_name = table['name']
+        print(f"\n📋 Tabelle: {table_name}")
+        print("-" * 40)
+        
+        # Felder der Tabelle abrufen
+        fields = conn.execute(f"PRAGMA table_info({table_name})").fetchall()
+        
+        for field in fields:
+            field_name = field['name']
+            field_type = field['type']
+            not_null = "NOT NULL" if field['notnull'] else ""
+            pk = "PRIMARY KEY" if field['pk'] else ""
+            default = f"DEFAULT {field['dflt_value']}" if field['dflt_value'] else ""
+            
+            print(f"  • {field_name} {field_type} {not_null} {pk} {default}".strip())
+    
+    conn.close()
+    print(f"\n{'='*60}")
+    print(f"ANZAHL TABELLEN: {len(tables)}")
+    print(f"{'='*60}")
 
 def reset_database():
     """Löscht und erstellt die Datenbank neu"""
@@ -120,6 +158,9 @@ def reset_database():
     
     conn.commit()
     conn.close()
+    
+    # 5. Tabellen anzeigen
+    show_tables()
     
     print(f"\n{'='*50}")
     print("DATENBANK ERFOLGREICH ZURÜCKGESETZT")
