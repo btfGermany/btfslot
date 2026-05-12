@@ -772,7 +772,7 @@ def init_db():
     finally:
         conn.close()
 
-@app.route('/admin/users', endpoint='users')
+@app.route('/admin/users', endpoint='manage_users')
 @login_required
 def manage_users():
     if current_user.role != 'admin':
