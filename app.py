@@ -683,6 +683,7 @@ def permission_required(permission_name):
 
 def init_db():
     conn = get_db_connection()
+    is_new_db = False
     
     try:
         # Prüfe ob Datenbank bereits initialisiert wurde
@@ -693,118 +694,83 @@ def init_db():
         
         if users_table:
             # Datenbank existiert bereits - füge alle fehlende Tabellen hinzu
-            # Lese schema.sql und führe alle CREATE TABLE IF NOT EXISTS Statements aus
             with open('schema.sql', 'r') as f:
                 schema_content = f.read()
             
-            # Teile die Statements - jeder CREATE TABLE endet mit ;
+            # Führe alle CREATE TABLE Statements aus
             statements = schema_content.split(';')
-            created_count = 0
+            tables_created = 0
             
             for stmt in statements:
                 stmt = stmt.strip()
                 if stmt.startswith('CREATE TABLE IF NOT EXISTS'):
-                    table_name = stmt.split('(')[0].replace('CREATE TABLE IF NOT EXISTS', '').strip()
                     try:
                         conn.execute(stmt + ';')
-                        created_count += 1
-                    except Exception as te:
-                        pass  # Tabelle existiert bereits oder Fehler
+                        tables_created += 1
+                    except:
+                        pass
             
             conn.commit()
-            print(f"Database check completed - added {created_count} tables")
-            conn.close()
-            return
+            print(f"Database check completed - {tables_created} tables processed")
+        else:
+            # Datenbank existiert nicht - erstelle sie komplett neu
+            with open('schema.sql', 'r') as f:
+                conn.executescript(f.read())
+            print("Database schema created")
+            is_new_db = True
         
-        # Datenbank existiert nicht - erstelle sie komplett neu
-        with open('schema.sql', 'r') as f:
-            conn.executescript(f.read())
-        print("Database schema created")
+        # Initiale Rollen und Berechtigungen erstellen falls neue DB
+        if is_new_db:
+            roles = conn.execute('SELECT COUNT(*) as count FROM user_roles').fetchone()
+            if roles['count'] == 0:
+                conn.execute('INSERT INTO user_roles (name, description) VALUES (?, ?)', ('admin', 'Vollzugriff'))
+                conn.execute('INSERT INTO user_roles (name, description) VALUES (?, ?)', ('manager', 'Bestellverwaltung'))
+                conn.execute('INSERT INTO user_roles (name, description) VALUES (?, ?)', ('terminal', 'Terminal'))
+                
+                permissions = [('manage_users', 'Benutzer verwalten'), ('manage_products', 'Produkte verwalten'),
+                            ('manage_orders', 'Bestellungen verwalten'), ('access_terminal', 'Terminal'),
+                            ('view_reports', 'Berichte'), ('manage_system', 'System')]
+                conn.executemany('INSERT INTO permissions (name, description) VALUES (?, ?)', permissions)
+                
+                perms = conn.execute('SELECT id FROM permissions').fetchall()
+                admin_role = conn.execute('SELECT id FROM user_roles WHERE name = "admin"').fetchone()
+                for p in perms:
+                    conn.execute('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)', (admin_role['id'], p['id']))
+                
+                manager_role = conn.execute('SELECT id FROM user_roles WHERE name = "manager"').fetchone()
+                for pn in ['manage_products', 'manage_orders', 'view_reports']:
+                    p = conn.execute('SELECT id FROM permissions WHERE name = ?', (pn,)).fetchone()
+                    if p:
+                        conn.execute('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)', (manager_role['id'], p['id']))
+                
+                term_role = conn.execute('SELECT id FROM user_roles WHERE name = "terminal"').fetchone()
+                p = conn.execute('SELECT id FROM permissions WHERE name = "access_terminal"').fetchone()
+                if p:
+                    conn.execute('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)', (term_role['id'], p['id']))
+            
+            # Admin erstellen falls nicht vorhanden
+            admin = conn.execute('SELECT * FROM users WHERE username = "admin"').fetchone()
+            if not admin:
+                config = load_config()
+                username = config.get('admin', {}).get('username', 'admin') if config else 'admin'
+                password = config.get('admin', {}).get('password', '') if config else ''
+                if not password:
+                    password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+                    if config:
+                        config['admin']['password'] = password
+                    else:
+                        config = {'admin': {'username': username, 'password': password}}
+                    save_config(config)
+                pw_hash = generate_password_hash(password)
+                conn.execute('INSERT INTO users (username, password, role) VALUES (?, ?, ?)', (username, pw_hash, 'admin'))
+                print(f"Admin created: {username}")
+            
+            conn.commit()
         
     except Exception as e:
         print(f"Database init error: {e}")
     finally:
         conn.close()
-        return
-    
-    # Initiale Rollen und Berechtigungen erstellen
-    roles = conn.execute('SELECT COUNT(*) as count FROM user_roles').fetchone()
-    if roles['count'] == 0:
-        # Standardrollen erstellen
-        conn.execute('INSERT INTO user_roles (name, description) VALUES (?, ?)', 
-                    ('admin', 'Vollzugriff auf das System'))
-        conn.execute('INSERT INTO user_roles (name, description) VALUES (?, ?)', 
-                    ('manager', 'Zugriff auf Bestellungen und Produktverwaltung'))
-        conn.execute('INSERT INTO user_roles (name, description) VALUES (?, ?)', 
-                    ('terminal', 'Zugriff nur auf Terminal-Funktionen'))
-        
-        # Berechtigungen erstellen
-        permissions = [
-            ('manage_users', 'Benutzer verwalten'),
-            ('manage_products', 'Produkte verwalten'),
-            ('manage_orders', 'Bestellungen verwalten'),
-            ('access_terminal', 'Terminal-Funktionen nutzen'),
-            ('view_reports', 'Berichte einsehen'),
-            ('manage_system', 'Systemeinstellungen verwalten')
-        ]
-        conn.executemany('INSERT INTO permissions (name, description) VALUES (?, ?)', permissions)
-        
-        # Berechtigungen zuweisen
-        # Admin bekommt alle Berechtigungen
-        permissions = conn.execute('SELECT id FROM permissions').fetchall()
-        admin_role = conn.execute('SELECT id FROM user_roles WHERE name = "admin"').fetchone()
-        for perm in permissions:
-            conn.execute('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
-                        (admin_role['id'], perm['id']))
-        
-        # Manager bekommt Produkt- und Bestellverwaltung
-        manager_perms = ['manage_products', 'manage_orders', 'view_reports']
-        manager_role = conn.execute('SELECT id FROM user_roles WHERE name = "manager"').fetchone()
-        for perm_name in manager_perms:
-            perm = conn.execute('SELECT id FROM permissions WHERE name = ?', (perm_name,)).fetchone()
-            if perm:
-                conn.execute('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
-                            (manager_role['id'], perm['id']))
-        
-        # Terminal bekommt nur Terminal-Zugriff
-        terminal_role = conn.execute('SELECT id FROM user_roles WHERE name = "terminal"').fetchone()
-        perm = conn.execute('SELECT id FROM permissions WHERE name = "access_terminal"').fetchone()
-        if perm:
-            conn.execute('INSERT INTO role_permissions (role_id, permission_id) VALUES (?, ?)',
-                        (terminal_role['id'], perm['id']))
-    
-    # Prüfe ob Admin existiert
-    admin = conn.execute('SELECT * FROM users WHERE username = "admin"').fetchone()
-    
-    if not admin:
-        # Lade oder erstelle Admin-Zugangsdaten
-        config = load_config()
-        
-        if config and 'admin' in config:
-            # Verwende vorhandene Zugangsdaten
-            username = config['admin']['username']
-            password = config['admin']['password']
-        else:
-            # Erstelle neue Zugangsdaten
-            username = 'admin'
-            password = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-            
-            # Speichere in config.json
-            config = {'admin': {'username': username, 'password': password}}
-            save_config(config)
-            print(f"Admin credentials saved to {CONFIG_FILE}")
-        
-        # Erstelle Admin-Nutzer
-        password_hash = generate_password_hash(password)
-        conn.execute(
-            'INSERT INTO users (username, password, role) VALUES (?, ?, ?)',
-            (username, password_hash, 'admin')
-        )
-        conn.commit()
-        
-        print(f"Admin user created! Username: {username}, Password: {password}")
-    
-    conn.close()
 
 @app.route('/admin/users')
 @login_required
