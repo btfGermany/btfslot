@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS product_daily_availability (
     product_id INTEGER NOT NULL,
     date DATE NOT NULL,
     available_quantity INTEGER DEFAULT 0,
-    FOREIGN KEY (product_id) REFERENCES product_classes(id)
+    FOREIGN KEY (product_id) REFERENCES product_classes(id),
+    UNIQUE(product_id, date)
 );
 
 CREATE TABLE IF NOT EXISTS order_slot_allocation (

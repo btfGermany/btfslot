@@ -2877,11 +2877,10 @@ def set_availability(product_id):
             (product_id, date)
         )
     else:
-        # Upsert availability
+        # Upsert availability using INSERT OR REPLACE
         conn.execute(
-            '''INSERT INTO product_daily_availability (product_id, date, available_quantity)
-            VALUES (?, ?, ?)
-            ON CONFLICT(product_id, date) DO UPDATE SET available_quantity = excluded.available_quantity''',
+            '''INSERT OR REPLACE INTO product_daily_availability (product_id, date, available_quantity)
+            VALUES (?, ?, ?)''',
             (product_id, date, quantity)
         )
     
